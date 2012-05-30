@@ -126,14 +126,13 @@ qz_obj_t qz_from_char(char c) {
   return (qz_obj_t) { (c << 4) | QZ_PT_CHAR };
 }
 
-/* writes a qz_obj_t to a file stream in Scheme form
- * when depth < 0, the entire tree will be printed and readable by qz_read
- * when depth >= 0, the tree will only be printed to that depth */
-void qz_write(qz_obj_t o, int depth, FILE* fp)
+static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
 {
   if(qz_is_fixnum(o))
   {
-    fprintf(fp, " %lu", qz_to_fixnum(o));
+    if(*need_space) fputc(' ', fp);
+    fprintf(fp, "%lu", qz_to_fixnum(o));
+    *need_space = 1;
   }
   else if(qz_is_cell(o))
   {
@@ -145,21 +144,31 @@ void qz_write(qz_obj_t o, int depth, FILE* fp)
       {
         qz_pair_t* pair = &c->pair;
 
-        fputs(" (", fp);
-        if(depth) {
+        if(*need_space) fputc(' ', fp);
+        fputc('(', fp);
+        *need_space = 0;
+
+        if(depth)
+        {
           depth--;
-          for(;;) {
+          for(;;)
+          {
             if(qz_is_nil(pair->first)) /* this shouldn't happen? */
               break;
 
-            qz_write(pair->first, depth, fp);
+            inner_write(pair->first, depth, fp, need_space);
 
             if(qz_is_nil(pair->rest))
               break;
 
-            if(!qz_is_pair(pair->rest)) {
-              fputs(" .", fp);
-              qz_write(pair->rest, depth, fp);
+            if(!qz_is_pair(pair->rest))
+            {
+              if(*need_space) fputc(' ', fp);
+
+              fputc('.', fp);
+              *need_space = 1;
+
+              inner_write(pair->rest, depth, fp, need_space);
               break;
             }
 
@@ -167,15 +176,21 @@ void qz_write(qz_obj_t o, int depth, FILE* fp)
           }
           depth++;
         }
-        else {
-          fputs(" ...",  fp);
+        else
+        {
+          fputs("...",  fp);
         }
-        fputs(" )", fp);
+
+        fputc(')', fp);
+        *need_space = 1;
       }
       else if(c->type == QZ_CT_REAL)
       {
         // TODO make this readable by qz_read()
-        fprintf(fp, " %f", c->real);
+        if(*need_space) fputc(' ', fp);
+
+        fprintf(fp, "%f", c->real);
+        *need_space = 1;
       }
       else
       {
@@ -189,8 +204,10 @@ void qz_write(qz_obj_t o, int depth, FILE* fp)
   }
   else if(qz_is_string(o))
   {
+    if(*need_space) fputc(' ', fp);
+
     qz_string_t* s = qz_to_string(o);
-    fputc(' ', fp); fputc('"', fp);
+    fputc('"', fp);
     for(size_t i = 0; i < s->size; i++) {
       if(s->data[i] == '"')
         fputs("\\\"", fp);
@@ -201,57 +218,97 @@ void qz_write(qz_obj_t o, int depth, FILE* fp)
       else
         fprintf(fp, "\\x%02x;", s->data[i]);
     }
+
     fputc('"', fp);
+    *need_space = 1;
   }
   else if(qz_is_identifier(o))
   {
+    if(*need_space) fputc(' ', fp);
+
     // TODO make this readable by qz_read()
     qz_string_t* s = qz_to_identifier(o);
-    fprintf(fp, " %.*s", s->size, s->data);
+    fprintf(fp, "%.*s", s->size, s->data);
+
+    *need_space = 1;
   }
   else if(qz_is_vector(o))
   {
+    if(*need_space) fputc(' ', fp);
+
+    fputs("#(", fp);
+    *need_space = 0;
+
     qz_vector_t* v = qz_to_vector(o);
-    fputs(" #(", fp);
     if(depth) {
       depth--;
       for(size_t i = 0; i < v->size; i++)
-        qz_write(v->data[i], depth, fp);
+        inner_write(v->data[i], depth, fp, need_space);
       depth++;
     }
     else {
-      fputs(" ...", fp);
+      fputs("...", fp);
     }
-    fputs(" )", fp);
+
+    fputs(")", fp);
+    *need_space = 1;
   }
   else if(qz_is_bytevector(o))
   {
+    if(*need_space) fputc(' ', fp);
+
+    fputs("#u8(", fp);
+    *need_space = 0;
+
     qz_bytevector_t* bv = qz_to_bytevector(o);
-    fputs(" #u8(", fp);
     for(size_t i = 0; i < bv->size; i++)
-      fprintf(fp, " #x%02x", bv->data[i]);
-    fputs(" )", fp);
+    {
+      if(*need_space) fputc(' ', fp);
+
+      fprintf(fp, "#x%02x", bv->data[i]);
+      *need_space = 1;
+    }
+
+    fputs(")", fp);
+    *need_space = 1;
   }
   else if(qz_is_bool(o))
   {
+    if(*need_space) fputc(' ', fp);
+
     int b = qz_to_bool(o);
     if(b)
-      fputs(" #t", fp);
+      fputs("#t", fp);
     else
-      fputs(" #f", fp);
+      fputs("#f", fp);
+
+    *need_space = 1;
   }
   else if(qz_is_char(o))
   {
+    if(*need_space) fputc(' ', fp);
+
     char c = qz_to_char(o);
     if(isgraph(c))
-      fprintf(fp, " #\\%c", c);
+      fprintf(fp, "#\\%c", c);
     else
-      fprintf(fp, " #\\x%02x", c);
+      fprintf(fp, "#\\x%02x", c);
+
+    *need_space = 1;
   }
   else
   {
     assert(0); /* unknown tagged pointer type */
   }
+}
+
+/* writes a qz_obj_t to a file stream in Scheme form
+ * when depth < 0, the entire tree will be printed and readable by qz_read
+ * when depth >= 0, the tree will only be printed to that depth */
+void qz_write(qz_obj_t o, int depth, FILE* fp)
+{
+  int need_space = 0;
+  inner_write(o, depth, fp, &need_space);
 }
 
 void qz_destroy(qz_obj_t o)

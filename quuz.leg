@@ -1,0 +1,241 @@
+
+start = datum
+
+# 7.1.1 Lexical structure
+
+delimiter = whitespace | '(' | ')' | '\"' | ';' | '|'
+
+lineEnding = '\n' | '\r' | '\r\n'
+
+intralineWhitespace = ' ' | '\t'
+
+whitespace = intralineWhitespace | lineEnding
+
+comment = ';' (!lineEnding .)*
+  | nestedComment
+  | '#;' atmosphere datum
+
+nestedComment = '#|' commentText commentCont* '|#'
+
+commentText = (!('#|' | '|#') .)*
+
+commentCont = nestedComment commentText
+
+atmosphere = whitespace | comment
+
+intertokenSpace = atmosphere*
+
+identifier = initial subsequent*
+  | '|' {concat_identifier('|');} symbolElement* '|' {concat_identifier('|');}
+  | peculiarIdentifier
+
+initial = < letter > {concat_identifier(*yytext);}
+  | < specialInitial > {concat_identifier(*yytext);}
+  | ihe:inlineHexEscape {concat_identifier(ihe);}
+
+letter = [a-zA-Z]
+
+specialInitial = '!' | '$' | '%' | '&'
+  | '*' | '/' | ':' | '<' | '=' | '>'
+  | '?' | '^' | '_' | '~'
+
+subsequent = initial
+  | < digit > {concat_identifier(*yytext);}
+  | specialSubsequent
+
+digit = [0-9]
+
+hexDigit = digit | [a-fA-F]
+
+explicitSign = < '+' | '-' > {concat_identifier(*yytext);}
+
+specialSubsequent = explicitSign
+  | '.' {concat_identifier('.');}
+  | '@' {concat_identifier('@');}
+
+inlineHexEscape = '\\x' hexScalarValue ';' 
+
+hexScalarValue = < hexDigit+ > {$$ = strtol(yytext, NULL, 16);}
+
+peculiarIdentifier = explicitSign
+  | explicitSign signSubsequent subsequent*
+  | explicitSign '.' {concat_identifier('.');} dotSubsequent subsequent*
+  | '.' {concat_identifier('.');} nonDigit subsequent*
+
+nonDigit = dotSubsequent | explicitSign
+
+dotSubsequent = signSubsequent
+  | '.' {concat_identifier('.');}
+
+signSubsequent = initial
+  | explicitSign
+  | '@' {concat_identifier('@');}
+
+symbolElement = < [^|\\] > {concat_identifier(*yytext);}
+  | ihe:inlineHexEscape {concat_identifier(ihe);}
+
+boolean = ('#true' | '#t') {$$ = 1;}
+  | ('#false' | '#f') {$$ = 0;}
+
+character = '#\\' characterName
+  | '#\\x' hexScalarValue
+  | '#\\' < . > {$$ = *yytext;}
+
+characterName = 'alarm' {$$ = '\a';}
+  | 'backspace' {$$ = '\b';}
+  | 'delete' {$$ = '\x7F';}
+  | 'escape' {$$ = '\x1B';}
+  | 'newline' {$$ = '\n';}
+  | 'null' {$$ = '\0';}
+  | 'return' {$$ = '\r';}
+  | 'space' {$$ = ' ';}
+  | 'tab' {$$ = '\t';}
+
+string = '\"' stringElement* '\"'
+
+stringElement = lineEnding {concat_string('\n');}
+  | < [^"\\] > {concat_string(*yytext);}
+  | '\\a' {concat_string('\a');}
+  | '\\b' {concat_string('\b');}
+  | '\\t' {concat_string('\t');}
+  | '\\n' {concat_string('\n');}
+  | '\\r' {concat_string('\r');}
+  | '\\\"' {concat_string('"');}
+  | '\\\\' {concat_string('\\');}
+  | '\\' intralineWhitespace lineEnding intralineWhitespace
+  | ihe:inlineHexEscape {concat_string(ihe);}
+
+bytevector = {push_bytevector();} bytevectorBeginToken byte* listEndToken {pop();}
+
+byte = n:numberToken {concat_bytevector(n);}
+
+number = num2 | num8 | num10 | num16
+
+num2 = prefix2 complex2
+num8 = prefix8 complex8
+num10 = prefix10 complex10
+num16 = prefix16 complex16
+
+complex2 = real2 | real2 '@' real2
+  | real2 '+' ureal2 'i' | real2 '-' ureal2 'i'
+  | real2 '+i' | real2 '-i' | real2 infinity 'i'
+  | '+' ureal2 'i' | '-' ureal2 'i'
+  | infinity 'i' | '+i' | '-i'
+complex8 = real8 | real8 '@' real8
+  | real8 '+' ureal8 'i' | real8 '-' ureal8 'i'
+  | real8 '+i' | real8 '-i' | real8 infinity 'i'
+  | '+' ureal8 'i' | '-' ureal8 'i'
+  | infinity 'i' | '+i' | '-i'
+complex10 = real10 | real10 '@' real10
+  | real10 '+' ureal10 'i' | real10 '-' ureal10 'i'
+  | real10 '+i' | real10 '-i' | real10 infinity 'i'
+  | '+' ureal10 'i' | '-' ureal10 'i'
+  | infinity 'i' | '+i' | '-i'
+complex16 = real16 | real16 '@' real16
+  | real16 '+' ureal16 'i' | real16 '-' ureal16 'i'
+  | real16 '+i' | real16 '-i' | real16 infinity 'i'
+  | '+' ureal16 'i' | '-' ureal16 'i'
+  | infinity 'i' | '+i' | '-i'
+
+real2 = sign ureal2 | infinity
+real8 = sign ureal8 | infinity
+real10 = sign ureal10 | infinity
+real16 = sign ureal16 | infinity
+
+ureal2 = uinteger2
+  | uinteger2 '/' uinteger2
+ureal8 = uinteger8
+  | uinteger8 '/' uinteger8
+ureal10 = uinteger10
+  | uinteger10 '/' uinteger10
+  | decimal10
+ureal16 = uinteger16
+  | uinteger16 '/' uinteger16
+
+decimal10 = uinteger10 suffix
+  | '.' digit10+ suffix
+  | digit10+ '.' digit10* suffix
+
+uinteger2 = < digit2+ > {$$ = strtol(yytext, NULL, 2);}
+uinteger8 = < digit8+ > {$$ = strtol(yytext, NULL, 8);}
+uinteger10 = < digit10+ > {$$ = strtol(yytext, NULL, 10);}
+uinteger16 = < digit16+ > {$$ = strtol(yytext, NULL, 16);}
+
+prefix2 = radix2 exactness
+  | exactness radix2
+prefix8 = radix8 exactness
+  | exactness radix8
+prefix10 = radix10 exactness
+  | exactness radix10
+prefix16 = radix16 exactness
+  | exactness radix16
+
+infinity = '+inf.0' | '-inf.0' | '+nan.0'
+
+suffix = (exponentMarker sign digit10+)?
+
+exponentMarker = 'e' | 's' | 'f' | 'd' | 'l'
+
+sign = ('+' | '-')?
+
+exactness = ('#i' | '#e')?
+
+radix2 = '#b'
+radix8 = '#o'
+radix10 =  '#d'?
+radix16 = '#x'
+
+digit2 = [0-1]
+digit8 = [0-7]
+digit10 = digit
+digit16 = hexDigit
+
+identifierToken = identifier (&delimiter | !.) intertokenSpace
+booleanToken = boolean (&delimiter | !.) intertokenSpace
+numberToken = number (&delimiter | !.) intertokenSpace
+characterToken = character (&delimiter | !.) intertokenSpace
+stringToken = string (&delimiter | !.) intertokenSpace
+
+listBeginToken = '(' intertokenSpace
+listEndToken = ')' intertokenSpace
+vectorBeginToken = '#(' intertokenSpace
+bytevectorBeginToken = '#u8(' intertokenSpace
+dotToken = '.' intertokenSpace
+quoteToken = '\'' intertokenSpace
+quasiquoteToken = '`' intertokenSpace
+unquoteToken = ',' intertokenSpace
+unquoteSplicingToken = ',@' intertokenSpace
+
+# 7.1.2 External representations
+
+datum = simpleDatum
+  | compoundDatum
+  | label '=' datum
+  | label '#' intertokenSpace # not specified but seemed to be the intent
+
+simpleDatum = b:booleanToken {append_bool(b);}
+  | n:numberToken {append_number(n);}
+  | c:characterToken {append_char(c);}
+  | {push_string();} stringToken {pop();}
+  | {push_identifier();} symbol {pop();}
+  | bytevector
+
+symbol = identifierToken
+
+compoundDatum = list
+  | vector
+
+list = {push_pair();} listBeginToken datum* listEndToken {pop();}
+  | {push_pair();} listBeginToken datum+ dotToken {g_dotted_datum = 1;} datum listEndToken {pop();}
+  | abbreviation
+
+abbreviation = {push_pair();} abbrevPrefix datum {pop();}
+
+abbrevPrefix = quoteToken {push_identifier_c("quote");}
+  | quasiquoteToken {push_identifier_c("quasiquote");}
+  | unquoteSplicingToken {push_identifier_c("unquote-splicing");}
+  | unquoteToken {push_identifier_c("unquote");}
+
+vector = {push_vector();} vectorBeginToken datum* listEndToken {pop();}
+
+label = '#' digit+

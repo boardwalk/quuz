@@ -30,8 +30,8 @@ typedef enum {
 } qz_pointer_tag_t;
 
 typedef enum {
-  QZ_CT_PAIR, /* must be first, a zero'd cell is nil */
-  QZ_CT_REAL,
+  QZ_CT_PAIR,
+  QZ_CT_REAL
 } qz_cell_type_t;
 
 typedef struct { size_t value; } qz_obj_t;

@@ -59,21 +59,21 @@ qz_cell_t* qz_to_cell(qz_obj_t o) {
   assert(qz_is_cell(o));
   return (qz_cell_t*)(o.value & ~7);
 }
-qz_string_t* qz_to_string(qz_obj_t o) {
+qz_array_t* qz_to_string(qz_obj_t o) {
   assert(qz_is_string(o));
-  return (qz_string_t*)(o.value & ~7);
+  return (qz_array_t*)(o.value & ~7);
 }
-qz_string_t* qz_to_identifier(qz_obj_t o) {
+qz_array_t* qz_to_identifier(qz_obj_t o) {
   assert(qz_is_identifier(o));
-  return (qz_string_t*)(o.value & ~7);
+  return (qz_array_t*)(o.value & ~7);
 }
-qz_vector_t* qz_to_vector(qz_obj_t o) {
+qz_array_t* qz_to_vector(qz_obj_t o) {
   assert(qz_is_vector(o));
-  return (qz_vector_t*)(o.value & ~7);
+  return (qz_array_t*)(o.value & ~7);
 }
-qz_bytevector_t* qz_to_bytevector(qz_obj_t o) {
+qz_array_t* qz_to_bytevector(qz_obj_t o) {
   assert(qz_is_bytevector(o));
-  return (qz_bytevector_t*)(o.value & ~7);
+  return (qz_array_t*)(o.value & ~7);
 }
 int qz_to_bool(qz_obj_t o) {
   assert(qz_is_bool(o));
@@ -103,19 +103,19 @@ qz_obj_t qz_from_cell(qz_cell_t* c) {
   assert(pointer_aligned(c));
   return (qz_obj_t) { (size_t)c | QZ_PT_CELL };
 }
-qz_obj_t qz_from_string(qz_string_t* s) {
+qz_obj_t qz_from_string(qz_array_t* s) {
   assert(pointer_aligned(s));
   return (qz_obj_t) { (size_t)s | QZ_PT_STRING };
 }
-qz_obj_t qz_from_identifier(qz_string_t* s) {
+qz_obj_t qz_from_identifier(qz_array_t* s) {
   assert(pointer_aligned(s));
   return (qz_obj_t) { (size_t)s | QZ_PT_IDENTIFIER };
 }
-qz_obj_t qz_from_vector(qz_vector_t* v) {
+qz_obj_t qz_from_vector(qz_array_t* v) {
   assert(pointer_aligned(v));
   return (qz_obj_t) { (size_t)v | QZ_PT_VECTOR };
 }
-qz_obj_t qz_from_bytevector(qz_bytevector_t* bv) {
+qz_obj_t qz_from_bytevector(qz_array_t* bv) {
   assert(pointer_aligned(bv));
   return (qz_obj_t) { (size_t)bv | QZ_PT_BYTEVECTOR };
 }
@@ -206,17 +206,18 @@ static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
   {
     if(*need_space) fputc(' ', fp);
 
-    qz_string_t* s = qz_to_string(o);
+    qz_array_t* s = qz_to_string(o);
     fputc('"', fp);
     for(size_t i = 0; i < s->size; i++) {
-      if(s->data[i] == '"')
+      char c = QZ_ARRAY_DATA(s, char)[i];
+      if(c == '"')
         fputs("\\\"", fp);
-      else if(s->data[i] == '\\')
+      else if(c == '\\')
         fputs("\\\\", fp);
-      else if(isprint(s->data[i]))
-        fputc(s->data[i], fp);
+      else if(isprint(c))
+        fputc(c, fp);
       else
-        fprintf(fp, "\\x%02x;", s->data[i]);
+        fprintf(fp, "\\x%02x;", c);
     }
 
     fputc('"', fp);
@@ -227,8 +228,8 @@ static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
     if(*need_space) fputc(' ', fp);
 
     // TODO make this readable by qz_read()
-    qz_string_t* s = qz_to_identifier(o);
-    fprintf(fp, "%.*s", s->size, s->data);
+    qz_array_t* s = qz_to_identifier(o);
+    fprintf(fp, "%.*s", s->size, QZ_ARRAY_DATA(s, char));
 
     *need_space = 1;
   }
@@ -239,11 +240,11 @@ static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
     fputs("#(", fp);
     *need_space = 0;
 
-    qz_vector_t* v = qz_to_vector(o);
+    qz_array_t* v = qz_to_vector(o);
     if(depth) {
       depth--;
       for(size_t i = 0; i < v->size; i++)
-        inner_write(v->data[i], depth, fp, need_space);
+        inner_write(QZ_ARRAY_DATA(v, qz_obj_t)[i], depth, fp, need_space);
       depth++;
     }
     else {
@@ -260,12 +261,12 @@ static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
     fputs("#u8(", fp);
     *need_space = 0;
 
-    qz_bytevector_t* bv = qz_to_bytevector(o);
+    qz_array_t* bv = qz_to_bytevector(o);
     for(size_t i = 0; i < bv->size; i++)
     {
       if(*need_space) fputc(' ', fp);
 
-      fprintf(fp, "#x%02x", bv->data[i]);
+      fprintf(fp, "#x%02x", QZ_ARRAY_DATA(bv, uint8_t)[i]);
       *need_space = 1;
     }
 
@@ -326,21 +327,21 @@ void qz_destroy(qz_obj_t o)
   }
   else if(qz_is_string(o))
   {
-    qz_string_t* s = qz_to_string(o);
+    qz_array_t* s = qz_to_string(o);
     if(s->size) free(s);
   }
   else if(qz_is_identifier(o))
   {
-    qz_string_t* s = qz_to_identifier(o);
+    qz_array_t* s = qz_to_identifier(o);
     if(s->size) free(s);
   }
   else if(qz_is_vector(o))
   {
-    qz_vector_t* v = qz_to_vector(o);
+    qz_array_t* v = qz_to_vector(o);
     if(v->size) {
       size_t i = 0;
       do {
-        qz_destroy(v->data[i]);
+        qz_destroy(QZ_ARRAY_DATA(v, qz_obj_t)[i]);
       }
       while(++i < v->size);
       free(v);
@@ -348,7 +349,7 @@ void qz_destroy(qz_obj_t o)
   }
   else if(qz_is_bytevector(o))
   {
-    qz_bytevector_t* bv = qz_to_bytevector(o);
+    qz_array_t* bv = qz_to_bytevector(o);
     if(bv->size) free(bv);
   }
 }

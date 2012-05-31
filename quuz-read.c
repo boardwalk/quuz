@@ -10,12 +10,10 @@
     yyprintf((stderr, "<%c>", yyc));               \
   }
 
-static qz_string_t null_string = {0};
-static qz_vector_t null_vector = {0};
-static qz_bytevector_t null_bytevector = {0};
+static qz_array_t null_array = {0};
 
 static FILE* g_fp = NULL;
-static qz_vector_t* g_stack = &null_vector;
+static qz_array_t* g_stack = &null_array;
 static int g_dotted_datum = 0;
 
 static int is_zero_or_power_of_two(size_t v)
@@ -23,15 +21,8 @@ static int is_zero_or_power_of_two(size_t v)
   return !(v & (v - 1));
 }
 
-static void* resize_array(void* ptr, size_t elem_size)
+static qz_array_t* resize_array(qz_array_t* arr, size_t elem_size)
 {
-  typedef struct {
-    size_t size;
-    char data[];
-  } array_t;
-
-  array_t* arr = (array_t*)ptr;
-
   /* do nothing if resize not needed */
   if(!is_zero_or_power_of_two(arr->size))
     return arr;
@@ -43,10 +34,10 @@ static void* resize_array(void* ptr, size_t elem_size)
   size_t capacity = (arr->size >= 16) ? (arr->size * 2) : 16;
 
   /* make copy of array */
-  array_t* new_arr = (array_t*)malloc(sizeof(array_t) + capacity*elem_size);
+  qz_array_t* new_arr = (qz_array_t*)malloc(sizeof(qz_array_t) + capacity*elem_size);
   assert(((size_t)new_arr & 7) == 0);
   new_arr->size = arr->size;
-  memcpy(new_arr->data, arr->data, arr->size*elem_size);
+  memcpy(QZ_ARRAY_DATA(new_arr, char), QZ_ARRAY_DATA(arr, char), arr->size*elem_size);
 
   /* cleanup */
   if(arr->size) free(arr);
@@ -60,50 +51,50 @@ static void concat_string(char c)
 {
   //printf("concat_string(%c)\n", c);
 
-  qz_obj_t* obj = &g_stack->data[g_stack->size - 1];
-  qz_string_t* str = qz_to_string(*obj);
+  qz_obj_t* obj = QZ_ARRAY_DATA(g_stack, qz_obj_t) + (g_stack->size - 1);
+  qz_array_t* str = qz_to_string(*obj);
 
   /* resize if necessary */
-  str = (qz_string_t*)resize_array(str, sizeof(char));
+  str = resize_array(str, sizeof(char));
   *obj = qz_from_string(str);
 
   /* append character */
-  str->data[str->size++] = c;
+  QZ_ARRAY_DATA(str, char)[str->size++] = c;
 }
 
 static void concat_identifier(char c)
 {
   //printf("concat_identifier(%c)\n", c);
   
-  qz_obj_t* obj = &g_stack->data[g_stack->size - 1];
-  qz_string_t* str = qz_to_identifier(*obj);
+  qz_obj_t* obj = QZ_ARRAY_DATA(g_stack, qz_obj_t) + (g_stack->size - 1);
+  qz_array_t* iden = qz_to_identifier(*obj);
 
   /* resize if necessary */
-  str = (qz_string_t*)resize_array(str, sizeof(char));
-  *obj = qz_from_identifier(str);
+  iden = resize_array(iden, sizeof(char));
+  *obj = qz_from_identifier(iden);
 
   /* append character */
-  str->data[str->size++] = c;
+  QZ_ARRAY_DATA(iden, char)[iden->size++] = c;
 }
 
 static void concat_bytevector(int b)
 {
   //printf("concat_bytevector(%d)\n", b);
 
-  qz_obj_t* obj = &g_stack->data[g_stack->size - 1];
-  qz_bytevector_t* bv = qz_to_bytevector(*obj);
+  qz_obj_t* obj = QZ_ARRAY_DATA(g_stack, qz_obj_t) + (g_stack->size - 1);
+  qz_array_t* bvec = qz_to_bytevector(*obj);
 
   /* resize if necessary */
-  bv = (qz_bytevector_t*)resize_array(bv, sizeof(uint8_t));
-  *obj = qz_from_bytevector(bv);
+  bvec = resize_array(bvec, sizeof(uint8_t));
+  *obj = qz_from_bytevector(bvec);
 
   /* append byte */
-  bv->data[bv->size++] = b;
+  QZ_ARRAY_DATA(bvec, uint8_t)[bvec->size++] = b;
 }
 
 static void append(qz_obj_t value_obj)
 {
-  qz_obj_t* obj = &g_stack->data[g_stack->size - 1];
+  qz_obj_t* obj = QZ_ARRAY_DATA(g_stack, qz_obj_t) + (g_stack->size - 1);
 
   //printf("append(%lu)\n", value_obj.value);
   //printf("  stack obj: "); qz_write(*obj, -1, stdout); fputc('\n', stdout);
@@ -144,14 +135,14 @@ static void append(qz_obj_t value_obj)
   }
   else if(qz_is_vector(*obj))
   {
-    qz_vector_t* vec = qz_to_vector(*obj);
+    qz_array_t* vec = qz_to_vector(*obj);
 
     /* resize if necessary */
-    vec = (qz_vector_t*)resize_array(vec, sizeof(qz_obj_t));
+    vec = resize_array(vec, sizeof(qz_obj_t));
     *obj = qz_from_vector(vec);
 
     /* append object */
-    vec->data[vec->size++] = value_obj;
+    QZ_ARRAY_DATA(vec, qz_obj_t)[vec->size++] = value_obj;
   }
   else
   {
@@ -166,8 +157,8 @@ static void push(qz_obj_t obj)
 {
   //printf("push()\n");
 
-  g_stack = (qz_vector_t*)resize_array(g_stack, sizeof(qz_obj_t));
-  g_stack->data[g_stack->size++] = obj;
+  g_stack = resize_array(g_stack, sizeof(qz_obj_t));
+  QZ_ARRAY_DATA(g_stack, qz_obj_t)[g_stack->size++] = obj;
 }
 
 /* pop an object from the stack, appending it to the container at the new top of the stack */
@@ -176,7 +167,7 @@ static void pop()
   //printf("pop()\n");
 
   assert(g_stack->size > 1); /* never pop the root element */
-  qz_obj_t obj = g_stack->data[--g_stack->size];
+  qz_obj_t obj = QZ_ARRAY_DATA(g_stack, qz_obj_t)[--g_stack->size];
 
   append(obj);
 }
@@ -199,7 +190,7 @@ static void push_vector()
 {
   //printf("push_vector()\n");
 
-  push(qz_from_vector(&null_vector));
+  push(qz_from_vector(&null_array));
 }
 
 /* push a bytevector onto the stack */
@@ -207,7 +198,7 @@ static void push_bytevector()
 {
   //printf("push_bytevector()\n");
 
-  push(qz_from_bytevector(&null_bytevector));
+  push(qz_from_bytevector(&null_array));
 }
 
 /* push a string onto the stack */
@@ -215,7 +206,7 @@ static void push_string()
 {
   //printf("push_string()\n");
 
-  push(qz_from_string(&null_string));
+  push(qz_from_string(&null_array));
 }
 
 /* push an identifier onto the stack */
@@ -223,7 +214,7 @@ static void push_identifier()
 {
   //printf("push_identifier()\n");
 
-  push(qz_from_identifier(&null_string));
+  push(qz_from_identifier(&null_array));
 }
 
 /* append a char value to the container at the top of the stack */
@@ -274,7 +265,7 @@ qz_obj_t qz_read(FILE* fp)
   root.pair.first = QZ_NIL;
   root.pair.rest = QZ_NIL;
 
-  g_stack = &null_vector;
+  g_stack = &null_array;
   push(qz_from_cell(&root));
 
   /* setup input file */
@@ -284,7 +275,7 @@ qz_obj_t qz_read(FILE* fp)
   while(yyparse()) /**/;
 
   /* cleanup */
-  free(g_stack); /* will always contain the root element, hence not be null_vector */
+  free(g_stack); /* will always contain the root element, hence not be null_array */
   g_stack = NULL;
   g_fp = NULL;
 

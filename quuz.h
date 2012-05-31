@@ -16,6 +16,8 @@
  * 0001 boolean (value is ptr >> 4)
  * 1001 character (value is ptr >> 4) */
 
+#define QZ_ARRAY_DATA(a, t) ((t*)((char*)(a) + sizeof(qz_array_t)))
+
 typedef enum {
   QZ_PT_EVEN_FIXNUM = 0,
   QZ_PT_SHORT_IMM = 1,
@@ -41,20 +43,10 @@ typedef struct qz_pair {
   qz_obj_t rest;
 } qz_pair_t;
 
-typedef struct qz_string {
-  size_t size;
-  char data[];
-} qz_string_t;
-
-typedef struct qz_vector {
-  size_t size;
-  qz_obj_t data[];
-} qz_vector_t;
-
-typedef struct qz_bytevector {
-  size_t size;
-  uint8_t data[];
-} qz_bytevector_t;
+typedef struct qz_array {
+  size_t size; /* in elements, not bytes */
+  /* data follows */
+} qz_array_t;
 
 typedef struct qz_cell {
   qz_cell_type_t type; /* possibly could pack more data in here */
@@ -83,10 +75,10 @@ int qz_is_real(qz_obj_t);
 
 intptr_t qz_to_fixnum(qz_obj_t);
 qz_cell_t* qz_to_cell(qz_obj_t);
-qz_string_t* qz_to_string(qz_obj_t);
-qz_string_t* qz_to_identifier(qz_obj_t);
-qz_vector_t* qz_to_vector(qz_obj_t);
-qz_bytevector_t* qz_to_bytevector(qz_obj_t);
+qz_array_t* qz_to_string(qz_obj_t);
+qz_array_t* qz_to_identifier(qz_obj_t);
+qz_array_t* qz_to_vector(qz_obj_t);
+qz_array_t* qz_to_bytevector(qz_obj_t);
 int qz_to_bool(qz_obj_t);
 char qz_to_char(qz_obj_t);
 qz_pair_t* qz_to_pair(qz_obj_t);
@@ -94,10 +86,10 @@ double qz_to_real(qz_obj_t);
 
 qz_obj_t qz_from_fixnum(intptr_t);
 qz_obj_t qz_from_cell(qz_cell_t*);
-qz_obj_t qz_from_string(qz_string_t*);
-qz_obj_t qz_from_identifier(qz_string_t*);
-qz_obj_t qz_from_vector(qz_vector_t*);
-qz_obj_t qz_from_bytevector(qz_bytevector_t*);
+qz_obj_t qz_from_string(qz_array_t*);
+qz_obj_t qz_from_identifier(qz_array_t*);
+qz_obj_t qz_from_vector(qz_array_t*);
+qz_obj_t qz_from_bytevector(qz_array_t*);
 qz_obj_t qz_from_bool(int);
 qz_obj_t qz_from_char(char);
 

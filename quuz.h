@@ -66,7 +66,7 @@ typedef struct qz_cell {
   /* don't put anything beyond the union. qz_hash_t is variable in size */
 } qz_cell_t;
 
-/* quuz-cell.h */
+/* quuz-object.c */
 extern qz_obj_t const QZ_NIL;
 extern qz_obj_t const QZ_TRUE;
 extern qz_obj_t const QZ_FALSE;

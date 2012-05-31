@@ -92,15 +92,15 @@ char qz_to_char(qz_obj_t o) {
 }
 qz_pair_t* qz_to_pair(qz_obj_t o) {
   assert(qz_is_pair(o));
-  return &qz_to_cell(o)->pair;
+  return &qz_to_cell(o)->value.pair;
 }
 qz_hash_t* qz_to_hash(qz_obj_t o) {
   assert(qz_is_hash(o));
-  return &qz_to_cell(o)->hash;
+  return &qz_to_cell(o)->value.hash;
 }
 double qz_to_real(qz_obj_t o) {
   assert(qz_is_real(o));
-  return qz_to_cell(o)->real;
+  return qz_to_cell(o)->value.real;
 }
 
 /* qz_from_<type> */
@@ -153,7 +153,7 @@ static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
     {
       if(c->type == QZ_CT_PAIR)
       {
-        qz_pair_t* pair = &c->pair;
+        qz_pair_t* pair = &c->value.pair;
 
         if(*need_space) fputc(' ', fp);
         fputc('(', fp);
@@ -200,7 +200,7 @@ static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
         // TODO make this readable by qz_read()
         if(*need_space) fputc(' ', fp);
 
-        fprintf(fp, "%f", c->real);
+        fprintf(fp, "%f", c->value.real);
         *need_space = 1;
       }
       else
@@ -330,12 +330,12 @@ void qz_destroy(qz_obj_t o)
     qz_cell_t* c = qz_to_cell(o);
     if(c) {
       if(c->type == QZ_CT_PAIR) {
-        qz_destroy(c->pair.first);
-        qz_destroy(c->pair.rest);
+        qz_destroy(c->value.pair.first);
+        qz_destroy(c->value.pair.rest);
       }
       if(c->type == QZ_CT_HASH) {
-        for(size_t i = 0; i < c->hash.capacity; i++)
-          qz_destroy(QZ_HASH_DATA(&c->hash)[i]);
+        for(size_t i = 0; i < c->value.hash.capacity; i++)
+          qz_destroy(QZ_HASH_DATA(&c->value.hash)[i]);
       }
       free(c);
     }

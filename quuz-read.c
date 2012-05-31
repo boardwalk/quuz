@@ -123,8 +123,8 @@ static void append(qz_obj_t value_obj)
           /* wrap in another cell and append */
           qz_cell_t* rest_cell = (qz_cell_t*)malloc(sizeof(qz_cell_t));
           rest_cell->type = QZ_CT_PAIR;
-          rest_cell->pair.first = value_obj;
-          rest_cell->pair.rest = QZ_NIL;
+          rest_cell->value.pair.first = value_obj;
+          rest_cell->value.pair.rest = QZ_NIL;
           pair->rest = qz_from_cell(rest_cell);
         }
         break;
@@ -179,8 +179,8 @@ static void push_pair()
 
   qz_cell_t* cell = malloc(sizeof(qz_cell_t));
   cell->type = QZ_CT_PAIR;
-  cell->pair.first = QZ_NIL;
-  cell->pair.rest = QZ_NIL;
+  cell->value.pair.first = QZ_NIL;
+  cell->value.pair.rest = QZ_NIL;
 
   push(qz_from_cell(cell));
 }
@@ -262,8 +262,8 @@ qz_obj_t qz_read(FILE* fp)
   /* setup stack with root cell */
   qz_cell_t root;
   root.type = QZ_CT_PAIR;
-  root.pair.first = QZ_NIL;
-  root.pair.rest = QZ_NIL;
+  root.value.pair.first = QZ_NIL;
+  root.value.pair.rest = QZ_NIL;
 
   g_stack = &null_array;
   push(qz_from_cell(&root));
@@ -279,6 +279,6 @@ qz_obj_t qz_read(FILE* fp)
   g_stack = NULL;
   g_fp = NULL;
 
-  return root.pair.first;
+  return root.value.pair.first;
 }
 

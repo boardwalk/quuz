@@ -62,7 +62,7 @@ typedef struct qz_cell {
     qz_pair_t pair;
     qz_hash_t hash;
     double real;
-  };
+  } value;
   /* don't put anything beyond the union. qz_hash_t is variable in size */
 } qz_cell_t;
 

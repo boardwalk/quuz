@@ -83,9 +83,9 @@ bloggie berf")
 
 === Simple numbers
 --- input
-(#b1010 #o644 #d123 42 #xFF)
+(#b1010 #b-1010 #o644 #d123 42 -127 #xFF)
 --- expected
-(10 420 123 42 255)
+(10 -10 420 123 42 -127 255)
 
 === Bytevectors
 --- input

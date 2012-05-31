@@ -51,9 +51,9 @@ int qz_is_real(qz_obj_t o) {
 }
 
 /* qz_to_<type> */
-size_t qz_to_fixnum(qz_obj_t o) {
+intptr_t qz_to_fixnum(qz_obj_t o) {
   assert(qz_is_fixnum(o));
-  return o.value >> 2;
+  return (intptr_t)o.value >> 2;
 }
 qz_cell_t* qz_to_cell(qz_obj_t o) {
   assert(qz_is_cell(o));
@@ -96,7 +96,7 @@ double qz_to_real(qz_obj_t o) {
 static int pointer_aligned(void* v) {
   return ((size_t)v & 7) == 0;
 }
-qz_obj_t qz_from_fixnum(size_t i) {
+qz_obj_t qz_from_fixnum(intptr_t i) {
   return (qz_obj_t) { i << 2 };
 }
 qz_obj_t qz_from_cell(qz_cell_t* c) {
@@ -131,7 +131,7 @@ static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
   if(qz_is_fixnum(o))
   {
     if(*need_space) fputc(' ', fp);
-    fprintf(fp, "%lu", qz_to_fixnum(o));
+    fprintf(fp, "%ld", qz_to_fixnum(o));
     *need_space = 1;
   }
   else if(qz_is_cell(o))

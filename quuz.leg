@@ -116,31 +116,39 @@ num8 = prefix8 complex8
 num10 = prefix10 complex10
 num16 = prefix16 complex16
 
-complex2 = real2 | real2 '@' real2
-  | real2 '+' ureal2 'i' | real2 '-' ureal2 'i'
-  | real2 '+i' | real2 '-i' | real2 infinity 'i'
-  | '+' ureal2 'i' | '-' ureal2 'i'
-  | infinity 'i' | '+i' | '-i'
-complex8 = real8 | real8 '@' real8
-  | real8 '+' ureal8 'i' | real8 '-' ureal8 'i'
-  | real8 '+i' | real8 '-i' | real8 infinity 'i'
-  | '+' ureal8 'i' | '-' ureal8 'i'
-  | infinity 'i' | '+i' | '-i'
-complex10 = real10 | real10 '@' real10
-  | real10 '+' ureal10 'i' | real10 '-' ureal10 'i'
-  | real10 '+i' | real10 '-i' | real10 infinity 'i'
-  | '+' ureal10 'i' | '-' ureal10 'i'
-  | infinity 'i' | '+i' | '-i'
-complex16 = real16 | real16 '@' real16
-  | real16 '+' ureal16 'i' | real16 '-' ureal16 'i'
-  | real16 '+i' | real16 '-i' | real16 infinity 'i'
-  | '+' ureal16 'i' | '-' ureal16 'i'
-  | infinity 'i' | '+i' | '-i'
+complex2 = real2
+#  | real2 '@' real2
+#  | real2 '+' ureal2 'i' | real2 '-' ureal2 'i'
+#  | real2 '+i' | real2 '-i' | real2 infinity 'i'
+#  | '+' ureal2 'i' | '-' ureal2 'i'
+#  | infinity 'i' | '+i' | '-i'
+complex8 = real8
+#  | real8 '@' real8
+#  | real8 '+' ureal8 'i' | real8 '-' ureal8 'i'
+#  | real8 '+i' | real8 '-i' | real8 infinity 'i'
+#  | '+' ureal8 'i' | '-' ureal8 'i'
+#  | infinity 'i' | '+i' | '-i'
+complex10 = real10
+#  | real10 '@' real10
+#  | real10 '+' ureal10 'i' | real10 '-' ureal10 'i'
+#  | real10 '+i' | real10 '-i' | real10 infinity 'i'
+#  | '+' ureal10 'i' | '-' ureal10 'i'
+#  | infinity 'i' | '+i' | '-i'
+complex16 = real16
+# | real16 '@' real16
+#  | real16 '+' ureal16 'i' | real16 '-' ureal16 'i'
+#  | real16 '+i' | real16 '-i' | real16 infinity 'i'
+#  | '+' ureal16 'i' | '-' ureal16 'i'
+#  | infinity 'i' | '+i' | '-i'
 
-real2 = sign ureal2 | infinity
-real8 = sign ureal8 | infinity
-real10 = sign ureal10 | infinity
-real16 = sign ureal16 | infinity
+real2 = < sign ureal2 > {$$ = strtol(yytext, NULL, 2);}
+#  | infinity
+real8 = < sign ureal8 > {$$ = strtol(yytext, NULL, 8);}
+#  | infinity
+real10 = < sign ureal10 > {$$ = strtol(yytext, NULL, 10);}
+#  | infinity
+real16 = < sign ureal16 > {$$ = strtol(yytext, NULL, 16);}
+#  | infinity
 
 ureal2 = uinteger2
   | uinteger2 '/' uinteger2
@@ -156,10 +164,10 @@ decimal10 = uinteger10 suffix
   | '.' digit10+ suffix
   | digit10+ '.' digit10* suffix
 
-uinteger2 = < digit2+ > {$$ = strtol(yytext, NULL, 2);}
-uinteger8 = < digit8+ > {$$ = strtol(yytext, NULL, 8);}
-uinteger10 = < digit10+ > {$$ = strtol(yytext, NULL, 10);}
-uinteger16 = < digit16+ > {$$ = strtol(yytext, NULL, 16);}
+uinteger2 = digit2+
+uinteger8 = digit8+
+uinteger10 = digit10+
+uinteger16 = digit16+
 
 prefix2 = radix2 exactness
   | exactness radix2

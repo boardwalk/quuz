@@ -17,7 +17,7 @@
  * 1001 character (value is ptr >> 4) */
 
 typedef enum {
-  QZ_PT_EVEN_FIXNUM = 0, /* TODO signed? */
+  QZ_PT_EVEN_FIXNUM = 0,
   QZ_PT_SHORT_IMM = 1,
   QZ_PT_CELL = 2,
   QZ_PT_STRING = 3,
@@ -81,7 +81,7 @@ int qz_is_char(qz_obj_t);
 int qz_is_pair(qz_obj_t);
 int qz_is_real(qz_obj_t);
 
-size_t qz_to_fixnum(qz_obj_t);
+intptr_t qz_to_fixnum(qz_obj_t);
 qz_cell_t* qz_to_cell(qz_obj_t);
 qz_string_t* qz_to_string(qz_obj_t);
 qz_string_t* qz_to_identifier(qz_obj_t);
@@ -92,7 +92,7 @@ char qz_to_char(qz_obj_t);
 qz_pair_t* qz_to_pair(qz_obj_t);
 double qz_to_real(qz_obj_t);
 
-qz_obj_t qz_from_fixnum(size_t);
+qz_obj_t qz_from_fixnum(intptr_t);
 qz_obj_t qz_from_cell(qz_cell_t*);
 qz_obj_t qz_from_string(qz_string_t*);
 qz_obj_t qz_from_identifier(qz_string_t*);

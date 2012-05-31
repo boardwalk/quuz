@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #define YY_INPUT(buf, result, max_size)            \
   {                                                \
@@ -236,7 +235,7 @@ static void append_char(char c)
 }
 
 /* append a number value to the container at the top of the stack */
-static void append_number(ssize_t i)
+static void append_number(intptr_t i)
 {
   //printf("append_number(%ld)\n", i);
 
@@ -263,6 +262,7 @@ static void push_identifier_c(const char* s)
 }
 
 //#define YY_DEBUG
+#define YYSTYPE intptr_t
 #include "parser.c"
 
 /* scheme's read procedure */

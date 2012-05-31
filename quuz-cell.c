@@ -42,6 +42,13 @@ int qz_is_pair(qz_obj_t o) {
   }
   return 0;
 }
+int qz_is_hash(qz_obj_t o) {
+  if(qz_is_cell(o)) {
+    qz_cell_t* c = qz_to_cell(o);
+    if(c) return c->type == QZ_CT_HASH;
+  }
+  return 0;
+}
 int qz_is_real(qz_obj_t o) {
   if(qz_is_cell(o)) {
     qz_cell_t* c = qz_to_cell(o);
@@ -86,6 +93,10 @@ char qz_to_char(qz_obj_t o) {
 qz_pair_t* qz_to_pair(qz_obj_t o) {
   assert(qz_is_pair(o));
   return &qz_to_cell(o)->pair;
+}
+qz_hash_t* qz_to_hash(qz_obj_t o) {
+  assert(qz_is_hash(o));
+  return &qz_to_cell(o)->hash;
 }
 double qz_to_real(qz_obj_t o) {
   assert(qz_is_real(o));
@@ -321,6 +332,10 @@ void qz_destroy(qz_obj_t o)
       if(c->type == QZ_CT_PAIR) {
         qz_destroy(c->pair.first);
         qz_destroy(c->pair.rest);
+      }
+      if(c->type == QZ_CT_HASH) {
+        for(size_t i = 0; i < c->hash.capacity; i++)
+          qz_destroy(QZ_HASH_DATA(&c->hash)[i]);
       }
       free(c);
     }

@@ -17,6 +17,7 @@
  * 1001 character (value is ptr >> 4) */
 
 #define QZ_ARRAY_DATA(a, t) ((t*)((char*)(a) + sizeof(qz_array_t)))
+#define QZ_HASH_DATA(a) ((qz_obj_t*)((char*)(a) + sizeof(qz_hash_t)))
 
 typedef enum {
   QZ_PT_EVEN_FIXNUM = 0,
@@ -33,6 +34,7 @@ typedef enum {
 
 typedef enum {
   QZ_CT_PAIR,
+  QZ_CT_HASH,
   QZ_CT_REAL
 } qz_cell_type_t;
 
@@ -43,6 +45,12 @@ typedef struct qz_pair {
   qz_obj_t rest;
 } qz_pair_t;
 
+typedef struct qz_hash {
+  size_t size; /* in elements, not bytes */
+  size_t capacity; /* ditto */
+  /* qz_obj_t data follows */
+} qz_hash_t;
+
 typedef struct qz_array {
   size_t size; /* in elements, not bytes */
   /* data follows */
@@ -52,8 +60,10 @@ typedef struct qz_cell {
   qz_cell_type_t type; /* possibly could pack more data in here */
   union {
     qz_pair_t pair;
+    qz_hash_t hash;
     double real;
   };
+  /* don't put anything beyond the union. qz_hash_t is variable in size */
 } qz_cell_t;
 
 /* quuz-cell.h */
@@ -71,6 +81,7 @@ int qz_is_bytevector(qz_obj_t);
 int qz_is_bool(qz_obj_t);
 int qz_is_char(qz_obj_t);
 int qz_is_pair(qz_obj_t);
+int qz_is_hash(qz_obj_t);
 int qz_is_real(qz_obj_t);
 
 intptr_t qz_to_fixnum(qz_obj_t);
@@ -82,6 +93,7 @@ qz_array_t* qz_to_bytevector(qz_obj_t);
 int qz_to_bool(qz_obj_t);
 char qz_to_char(qz_obj_t);
 qz_pair_t* qz_to_pair(qz_obj_t);
+qz_hash_t* qz_to_hash(qz_obj_t);
 double qz_to_real(qz_obj_t);
 
 qz_obj_t qz_from_fixnum(intptr_t);
@@ -98,5 +110,10 @@ void qz_destroy(qz_obj_t obj);
 
 /* quuz-read.c */
 qz_obj_t qz_read(FILE*);
+
+/* quuz-hash.c */
+qz_obj_t qz_hash_create();
+void qz_hash_set(qz_obj_t key, qz_obj_t value);
+qz_obj_t qz_hash_get(qz_obj_t key);
 
 #endif /* QUUZ_QUUZ_H */

@@ -53,7 +53,7 @@ static uint32_t inner_hash(qz_obj_t o, uint32_t seed)
   assert(0); /* can't hash this type */
 }
 
-static uint32_t qz_hash(qz_obj_t o)
+static uint32_t hash_obj(qz_obj_t o)
 {
   return inner_hash(o, 0xDEADBEEF);
 }
@@ -79,7 +79,7 @@ static qz_cell_t* hash_create(int capacity)
 /* finds the pair where the given key is or would be stored */
 static qz_pair_t* hash_get(qz_hash_t* hash, qz_obj_t key)
 {
-  for(uint32_t i = qz_hash(key); /**/; i++)
+  for(uint32_t i = hash_obj(key); /**/; i++)
   {
     qz_pair_t* pair = QZ_HASH_DATA(hash) + (i % hash->capacity);
 

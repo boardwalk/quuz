@@ -24,7 +24,7 @@ sub external {
 
 sub parse {
   my $data = shift;
-  external($data, "./quuz", "-p");
+  external($data, "valgrind", "--quiet", "--leak-check=full", "--error-exitcode=1", "./quuz", "-p");
 }
 
 filters { input => 'parse', expected => 'chomp' };

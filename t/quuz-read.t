@@ -45,9 +45,9 @@ __END__
 
 === Strings
 --- input
-("zoop" "boop" "doopity\x20;" "doop\a\b\t\n\r\"\\\n")
+("" "zoop" "boop" "doopity\x20;" "doop\a\b\t\n\r\"\\\n")
 --- expected
-("zoop" "boop" "doopity " "doop\x07;\x08;\x09;\x0a;\x0d;\"\\\x0a;")
+("" "zoop" "boop" "doopity " "doop\x07;\x08;\x09;\x0a;\x0d;\"\\\x0a;")
 
 === Multiline strings
 --- input
@@ -65,9 +65,9 @@ bloggie berf")
 
 === Nested listed and vectors
 --- input
-(a #(b c) d (e #(f)) g)
+(a #(b c) d (e #(f)) #u8() #() () g)
 --- expected
-(a #(b c) d (e #(f)) g)
+(a #(b c) d (e #(f)) #u8() #() () g)
 
 === Dotted list
 --- input

@@ -324,52 +324,52 @@ void qz_write(qz_obj_t o, int depth, FILE* fp)
   inner_write(o, depth, fp, &need_space);
 }
 
-void qz_destroy(qz_obj_t o)
+void qz_destroy(qz_obj_t obj)
 {
-  if(qz_is_cell(o))
+  if(qz_is_cell(obj))
   {
-    qz_cell_t* c = qz_to_cell(o);
-    if(c) {
-      if(c->type == QZ_CT_PAIR) {
-        qz_destroy(c->value.pair.first);
-        qz_destroy(c->value.pair.rest);
+    qz_cell_t* cell = qz_to_cell(obj);
+    if(cell && !--cell->refcount) {
+      if(cell->type == QZ_CT_PAIR) {
+        qz_destroy(cell->value.pair.first);
+        qz_destroy(cell->value.pair.rest);
       }
-      if(c->type == QZ_CT_HASH) {
-        for(size_t i = 0; i < c->value.hash.capacity; i++) {
-          qz_pair_t* pair = QZ_HASH_DATA(&c->value.hash) + i;
+      else if(cell->type == QZ_CT_HASH) {
+        for(size_t i = 0; i < cell->value.hash.capacity; i++) {
+          qz_pair_t* pair = QZ_HASH_DATA(&cell->value.hash) + i;
           qz_destroy(pair->first);
           qz_destroy(pair->rest);
         }
       }
-      free(c);
+      free(cell); /* I never liked that game */
     }
   }
-  else if(qz_is_string(o))
+  else if(qz_is_string(obj))
   {
-    qz_array_t* s = qz_to_string(o);
-    if(s->size) free(s);
+    qz_array_t* str = qz_to_string(obj);
+    if(!--str->refcount)
+      free(str);
   }
-  else if(qz_is_identifier(o))
+  else if(qz_is_identifier(obj))
   {
-    qz_array_t* s = qz_to_identifier(o);
-    if(s->size) free(s);
+    qz_array_t* iden = qz_to_identifier(obj);
+    if(!--iden->refcount)
+      free(iden);
   }
-  else if(qz_is_vector(o))
+  else if(qz_is_vector(obj))
   {
-    qz_array_t* v = qz_to_vector(o);
-    if(v->size) {
-      size_t i = 0;
-      do {
-        qz_destroy(QZ_ARRAY_DATA(v, qz_obj_t)[i]);
-      }
-      while(++i < v->size);
-      free(v);
+    qz_array_t* vec = qz_to_vector(obj);
+    if(!--vec->refcount) {
+      for(size_t i = 0; i < vec->size; i++)
+        qz_destroy(QZ_ARRAY_DATA(vec, qz_obj_t)[i]);
+      free(vec);
     }
   }
-  else if(qz_is_bytevector(o))
+  else if(qz_is_bytevector(obj))
   {
-    qz_array_t* bv = qz_to_bytevector(o);
-    if(bv->size) free(bv);
+    qz_array_t* bvec = qz_to_bytevector(obj);
+    if(!--bvec->refcount)
+      free(bvec);
   }
 }
 

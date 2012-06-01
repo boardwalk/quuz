@@ -53,11 +53,13 @@ typedef struct qz_hash {
 
 typedef struct qz_array {
   size_t size; /* in elements, not bytes */
+  uint16_t refcount;
   /* data follows */
 } qz_array_t;
 
 typedef struct qz_cell {
-  qz_cell_type_t type; /* possibly could pack more data in here */
+  uint16_t type; /* qz_cell_type_t */
+  uint16_t refcount;
   union {
     qz_pair_t pair;
     qz_hash_t hash;

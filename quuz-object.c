@@ -241,7 +241,7 @@ static void inner_write(qz_obj_t o, int depth, FILE* fp, int* need_space)
 
     // TODO make this readable by qz_read()
     qz_array_t* s = qz_to_identifier(o);
-    fprintf(fp, "%.*s", s->size, QZ_ARRAY_DATA(s, char));
+    fprintf(fp, "%.*s", (int)s->size, QZ_ARRAY_DATA(s, char));
 
     *need_space = 1;
   }

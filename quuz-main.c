@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
   if(mode == PARSE)
     qz_write(obj, -1, stdout);
 
-  qz_destroy(obj);
+  qz_unref(obj);
 
   return EXIT_SUCCESS;
 }

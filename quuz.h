@@ -108,7 +108,8 @@ qz_obj_t qz_from_bool(int);
 qz_obj_t qz_from_char(char);
 
 void qz_write(qz_obj_t obj, int depth, FILE* fp);
-void qz_destroy(qz_obj_t obj);
+void qz_ref(qz_obj_t obj);
+void qz_unref(qz_obj_t obj);
 void qz_assign(qz_obj_t* slot, qz_obj_t obj);
 int qz_equal(qz_obj_t a, qz_obj_t b);
 

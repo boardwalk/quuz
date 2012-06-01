@@ -324,21 +324,47 @@ void qz_write(qz_obj_t o, int depth, FILE* fp)
   inner_write(o, depth, fp, &need_space);
 }
 
-void qz_destroy(qz_obj_t obj)
+void qz_ref(qz_obj_t obj)
+{
+  if(qz_is_cell(obj))
+  {
+    qz_cell_t* cell = qz_to_cell(obj);
+    if(cell)
+      cell->refcount++;
+  }
+  else if(qz_is_string(obj))
+  {
+    qz_to_string(obj)->refcount++;
+  }
+  else if(qz_is_identifier(obj))
+  {
+    qz_to_identifier(obj)->refcount++;
+  }
+  else if(qz_is_vector(obj))
+  {
+    qz_to_vector(obj)->refcount++;
+  }
+  else if(qz_is_bytevector(obj))
+  {
+    qz_to_bytevector(obj)->refcount++;
+  }
+}
+
+void qz_unref(qz_obj_t obj)
 {
   if(qz_is_cell(obj))
   {
     qz_cell_t* cell = qz_to_cell(obj);
     if(cell && !--cell->refcount) {
       if(cell->type == QZ_CT_PAIR) {
-        qz_destroy(cell->value.pair.first);
-        qz_destroy(cell->value.pair.rest);
+        qz_unref(cell->value.pair.first);
+        qz_unref(cell->value.pair.rest);
       }
       else if(cell->type == QZ_CT_HASH) {
         for(size_t i = 0; i < cell->value.hash.capacity; i++) {
           qz_pair_t* pair = QZ_HASH_DATA(&cell->value.hash) + i;
-          qz_destroy(pair->first);
-          qz_destroy(pair->rest);
+          qz_unref(pair->first);
+          qz_unref(pair->rest);
         }
       }
       free(cell); /* I never liked that game */
@@ -361,7 +387,7 @@ void qz_destroy(qz_obj_t obj)
     qz_array_t* vec = qz_to_vector(obj);
     if(!--vec->refcount) {
       for(size_t i = 0; i < vec->size; i++)
-        qz_destroy(QZ_ARRAY_DATA(vec, qz_obj_t)[i]);
+        qz_unref(QZ_ARRAY_DATA(vec, qz_obj_t)[i]);
       free(vec);
     }
   }
@@ -377,7 +403,9 @@ void qz_destroy(qz_obj_t obj)
  * obj gains a reference */
 void qz_assign(qz_obj_t* slot, qz_obj_t obj)
 {
-  /* TODO */
+  qz_unref(*slot);
+  qz_ref(obj);
+  *slot = obj;
 }
 
 /* performs a bitwise comparison of two arrays

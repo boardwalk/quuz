@@ -63,6 +63,7 @@ static qz_cell_t* hash_create(int capacity)
 {
   qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + capacity*sizeof(qz_pair_t));
   cell->type = QZ_CT_HASH;
+  cell->refcount = 1;
   cell->value.hash.size = 0;
   cell->value.hash.capacity = capacity;
 
@@ -109,7 +110,10 @@ static void hash_realloc(qz_obj_t* obj)
     *new_pair = *pair;
   }
 
-  qz_assign(obj, qz_from_cell(new_cell));
+  // replace old cell with new
+  new_cell->refcount = cell->refcount;
+  free(cell);
+  *obj = qz_from_cell(new_cell);
 }
 
 /* create a new, empty hash object */

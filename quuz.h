@@ -17,7 +17,7 @@
  * 1001 character (value is ptr >> 4) */
 
 #define QZ_ARRAY_DATA(a, t) ((t*)((char*)(a) + sizeof(qz_array_t)))
-#define QZ_HASH_DATA(a) ((qz_obj_t*)((char*)(a) + sizeof(qz_hash_t)))
+#define QZ_HASH_DATA(a) ((qz_pair_t*)((char*)(a) + sizeof(qz_hash_t)))
 
 typedef enum {
   QZ_PT_EVEN_FIXNUM = 0,
@@ -48,7 +48,7 @@ typedef struct qz_pair {
 typedef struct qz_hash {
   size_t size; /* in elements, not bytes */
   size_t capacity; /* ditto */
-  /* qz_obj_t data follows */
+  /* qz_pair_t data follows */
 } qz_hash_t;
 
 typedef struct qz_array {
@@ -107,13 +107,15 @@ qz_obj_t qz_from_char(char);
 
 void qz_write(qz_obj_t obj, int depth, FILE* fp);
 void qz_destroy(qz_obj_t obj);
+void qz_assign(qz_obj_t* slot, qz_obj_t obj);
+int qz_equal(qz_obj_t a, qz_obj_t b);
 
 /* quuz-read.c */
 qz_obj_t qz_read(FILE*);
 
 /* quuz-hash.c */
 qz_obj_t qz_hash_create();
-void qz_hash_set(qz_obj_t key, qz_obj_t value);
-qz_obj_t qz_hash_get(qz_obj_t key);
+qz_obj_t qz_hash_get(qz_obj_t obj, qz_obj_t key);
+void qz_hash_set(qz_obj_t* obj, qz_obj_t key, qz_obj_t value);
 
 #endif /* QUUZ_QUUZ_H */

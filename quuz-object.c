@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
 
 qz_obj_t const QZ_NIL = { (size_t)NULL | QZ_PT_CELL };
 qz_obj_t const QZ_TRUE = { (1 << 4) | QZ_PT_BOOL };
@@ -334,8 +335,11 @@ void qz_destroy(qz_obj_t o)
         qz_destroy(c->value.pair.rest);
       }
       if(c->type == QZ_CT_HASH) {
-        for(size_t i = 0; i < c->value.hash.capacity; i++)
-          qz_destroy(QZ_HASH_DATA(&c->value.hash)[i]);
+        for(size_t i = 0; i < c->value.hash.capacity; i++) {
+          qz_pair_t* pair = QZ_HASH_DATA(&c->value.hash) + i;
+          qz_destroy(pair->first);
+          qz_destroy(pair->rest);
+        }
       }
       free(c);
     }
@@ -367,5 +371,92 @@ void qz_destroy(qz_obj_t o)
     qz_array_t* bv = qz_to_bytevector(o);
     if(bv->size) free(bv);
   }
+}
+
+/* deref the object in slot, replacing it with obj
+ * obj gains a reference */
+void qz_assign(qz_obj_t* slot, qz_obj_t obj)
+{
+  /* TODO */
+}
+
+/* performs a bitwise comparison of two arrays
+ * returns nonzero if equal */
+static int compare_array(qz_array_t* a, qz_array_t* b, size_t elem_size)
+{
+  if(a->size != b->size)
+    return 0;
+
+  return memcmp(QZ_ARRAY_DATA(a, char), QZ_ARRAY_DATA(b, char), a->size*elem_size) == 0;
+}
+
+/* scheme's equal? procedure */
+int qz_equal(qz_obj_t a, qz_obj_t b)
+{
+  /* covers fixnum, bool, char, and equivalent pointers to other types */
+  if(a.value == b.value)
+    return 1;
+
+  int a_tag = a.value & 7;
+  int b_tag = b.value & 7;
+
+  /* different pointer tags? not equal */
+  if(a_tag != b_tag)
+    return 0;
+
+  if(a_tag == QZ_PT_CELL)
+  {
+    qz_cell_t* a_cell = qz_to_cell(a);
+    qz_cell_t* b_cell = qz_to_cell(b);
+
+    /* different cell types? not equal */
+    if(a_cell->type != b_cell->type)
+      return 0;
+
+    if(a_cell->type == QZ_CT_PAIR)
+    {
+      /* recusively compare pairs */
+      return qz_equal(a_cell->value.pair.first, b_cell->value.pair.first)
+        && qz_equal(b_cell->value.pair.rest, b_cell->value.pair.rest);
+    }
+    else if(a_cell->type == QZ_CT_REAL)
+    {
+      /* straight compare reals */
+      return a_cell->value.real == b_cell->value.real;
+    }
+  }
+  else if(a_tag == QZ_PT_STRING)
+  {
+    /* bitwise compare strings */
+    return compare_array(qz_to_string(a), qz_to_string(b), sizeof(char));
+  }
+  else if(a_tag == QZ_PT_IDENTIFIER)
+  {
+    /* bitwise compare idenifiers */
+    return compare_array(qz_to_identifier(a), qz_to_identifier(b), sizeof(char));
+  }
+  else if(a_tag == QZ_PT_VECTOR)
+  {
+    /* recursively compare vectors */
+    qz_array_t* a_vec = qz_to_vector(a);
+    qz_array_t* b_vec = qz_to_vector(b);
+
+    if(a_vec->size != b_vec->size)
+      return 0;
+
+    for(size_t i = 0; i < a_vec->size; i++) {
+      if(!qz_equal(QZ_ARRAY_DATA(a_vec, qz_obj_t)[i], QZ_ARRAY_DATA(b_vec, qz_obj_t)[i]))
+        return 0;
+    }
+
+    return 1;
+  }
+  else if(a_tag == QZ_PT_BYTEVECTOR)
+  {
+    /* bitwise compare bytevectors */
+    return compare_array(qz_to_bytevector(a), qz_to_bytevector(b), sizeof(uint8_t));
+  }
+
+  assert(0); /* can't compare this type */
 }
 

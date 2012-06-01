@@ -10,42 +10,47 @@ static uint32_t hash_mem(const void* key, int len, uint32_t seed)
   return seed;
 }
 
-static uint32_t inner_hash(qz_obj_t o, uint32_t seed)
+static uint32_t inner_hash(qz_obj_t obj, uint32_t seed)
 {
-  if(qz_is_fixnum(o) || qz_is_bool(o) || qz_is_char(o))
+  if(qz_is_fixnum(obj) || qz_is_bool(obj) || qz_is_char(obj))
   {
-    return hash_mem(&o, sizeof(o), seed);
+    return hash_mem(&obj, sizeof(obj), seed);
   }
-  else if(qz_is_string(o) || qz_is_identifier(o))
+  else if(qz_is_string(obj))
   {
-    qz_array_t* arr = qz_to_string(o);
-    return hash_mem(QZ_ARRAY_DATA(arr, char), arr->size*sizeof(char), seed);
+    qz_array_t* str = qz_to_string(obj);
+    return hash_mem(QZ_ARRAY_DATA(str, char), str->size*sizeof(char), seed);
   }
-  else if(qz_is_bytevector(o))
+  else if(qz_is_identifier(obj))
   {
-    qz_array_t* arr = qz_to_string(o);
-    return hash_mem(QZ_ARRAY_DATA(arr, uint8_t), arr->size*sizeof(uint8_t), seed);
+    qz_array_t* iden = qz_to_string(obj);
+    return hash_mem(QZ_ARRAY_DATA(iden, char), iden->size*sizeof(char), seed);
   }
-  else if(qz_is_vector(o))
+  else if(qz_is_bytevector(obj))
   {
-    qz_array_t* arr = qz_to_vector(o);
-    qz_obj_t* data = QZ_ARRAY_DATA(arr, qz_obj_t);
-    for(size_t i = 0; i < arr->size; i++)
+    qz_array_t* bvec = qz_to_string(obj);
+    return hash_mem(QZ_ARRAY_DATA(bvec, uint8_t), bvec->size*sizeof(uint8_t), seed);
+  }
+  else if(qz_is_vector(obj))
+  {
+    qz_array_t* vec = qz_to_vector(obj);
+    qz_obj_t* data = QZ_ARRAY_DATA(vec, qz_obj_t);
+    for(size_t i = 0; i < vec->size; i++)
       seed = inner_hash(data[i], seed);
     return seed;
   }
-  else if(qz_is_real(o))
+  else if(qz_is_real(obj))
   {
-    double real = qz_to_real(o);
+    double real = qz_to_real(obj);
     return hash_mem(&real, sizeof(real), seed);
   }
-  else if(qz_is_pair(o))
+  else if(qz_is_pair(obj))
   {
-    qz_pair_t* pair = qz_to_pair(o);
+    qz_pair_t* pair = qz_to_pair(obj);
     seed = inner_hash(pair->first, seed);
     return inner_hash(pair->rest, seed);
   }
-  else if(qz_is_nil(o))
+  else if(qz_is_nil(obj))
   {
     return seed;
   }

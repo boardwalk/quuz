@@ -26,12 +26,12 @@ atmosphere = whitespace | comment
 intertokenSpace = atmosphere*
 
 identifier = initial subsequent*
-  | '|' {concat_identifier('|');} symbolElement* '|' {concat_identifier('|');}
+  | '|' {concat_string('|');} symbolElement* '|' {concat_string('|');}
   | peculiarIdentifier
 
-initial = < letter > {concat_identifier(*yytext);}
-  | < specialInitial > {concat_identifier(*yytext);}
-  | ihe:inlineHexEscape {concat_identifier(ihe);}
+initial = < letter > {concat_string(*yytext);}
+  | < specialInitial > {concat_string(*yytext);}
+  | ihe:inlineHexEscape {concat_string(ihe);}
 
 letter = [a-zA-Z]
 
@@ -40,18 +40,18 @@ specialInitial = '!' | '$' | '%' | '&'
   | '?' | '^' | '_' | '~'
 
 subsequent = initial
-  | < digit > {concat_identifier(*yytext);}
+  | < digit > {concat_string(*yytext);}
   | specialSubsequent
 
 digit = [0-9]
 
 hexDigit = digit | [a-fA-F]
 
-explicitSign = < '+' | '-' > {concat_identifier(*yytext);}
+explicitSign = < '+' | '-' > {concat_string(*yytext);}
 
 specialSubsequent = explicitSign
-  | '.' {concat_identifier('.');}
-  | '@' {concat_identifier('@');}
+  | '.' {concat_string('.');}
+  | '@' {concat_string('@');}
 
 inlineHexEscape = '\\x' hexScalarValue ';' 
 
@@ -59,20 +59,20 @@ hexScalarValue = < hexDigit+ > {$$ = strtol(yytext, NULL, 16);}
 
 peculiarIdentifier = explicitSign
   | explicitSign signSubsequent subsequent*
-  | explicitSign '.' {concat_identifier('.');} dotSubsequent subsequent*
-  | '.' {concat_identifier('.');} nonDigit subsequent*
+  | explicitSign '.' {concat_string('.');} dotSubsequent subsequent*
+  | '.' {concat_string('.');} nonDigit subsequent*
 
 nonDigit = dotSubsequent | explicitSign
 
 dotSubsequent = signSubsequent
-  | '.' {concat_identifier('.');}
+  | '.' {concat_string('.');}
 
 signSubsequent = initial
   | explicitSign
-  | '@' {concat_identifier('@');}
+  | '@' {concat_string('@');}
 
-symbolElement = < [^|\\] > {concat_identifier(*yytext);}
-  | ihe:inlineHexEscape {concat_identifier(ihe);}
+symbolElement = < [^|\\] > {concat_string(*yytext);}
+  | ihe:inlineHexEscape {concat_string(ihe);}
 
 boolean = ('#true' | '#t') {$$ = 1;}
   | ('#false' | '#f') {$$ = 0;}
@@ -225,7 +225,7 @@ simpleDatum = b:booleanToken {append_bool(b);}
   | n:numberToken {append_number(n);}
   | c:characterToken {append_char(c);}
   | {push_string();} stringToken {pop();}
-  | {push_identifier();} symbol {pop();}
+  | {push_string();} symbol {pop_iden();}
   | bytevector
 
 symbol = identifierToken

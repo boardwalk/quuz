@@ -10,6 +10,7 @@
     yyprintf((stderr, "<%c>", yyc));               \
   }
 
+static qz_state_t* g_st = NULL;
 static FILE* g_fp = NULL;
 static qz_array_t* g_stack = NULL;
 static int g_dotted_datum = 0;
@@ -72,21 +73,6 @@ static void concat_string(char c)
 
   /* append character */
   QZ_ARRAY_DATA(str, char)[str->size++] = c;
-}
-
-static void concat_identifier(char c)
-{
-  //printf("concat_identifier(%c)\n", c);
-  
-  qz_obj_t* obj = QZ_ARRAY_DATA(g_stack, qz_obj_t) + (g_stack->size - 1);
-  qz_array_t* iden = qz_to_identifier(*obj);
-
-  /* resize if necessary */
-  iden = resize_array(iden, sizeof(char));
-  *obj = qz_from_identifier(iden);
-
-  /* append character */
-  QZ_ARRAY_DATA(iden, char)[iden->size++] = c;
 }
 
 static void concat_bytevector(int b)
@@ -185,6 +171,17 @@ static void pop()
   append(obj);
 }
 
+/* pop a string from the stack, appending the matching identifier to the container at the top of the stack */
+static void pop_iden()
+{
+  //printf("pop_iden()\n");
+
+  assert(g_stack->size > 1); /* never poop the root element */
+  qz_obj_t obj = QZ_ARRAY_DATA(g_stack, qz_obj_t)[--g_stack->size];
+
+  append(qz_make_iden(g_st, obj));
+}
+
 /* push a pair onto the stack */
 static void push_pair()
 {
@@ -223,14 +220,6 @@ static void push_string()
   push(qz_from_string(alloc_array(sizeof(char))));
 }
 
-/* push an identifier onto the stack */
-static void push_identifier()
-{
-  //printf("push_identifier()\n");
-
-  push(qz_from_identifier(alloc_array(sizeof(char))));
-}
-
 /* append a char value to the container at the top of the stack */
 static void append_char(char c)
 {
@@ -260,10 +249,10 @@ static void push_identifier_c(const char* s)
 {
   //printf("push_identifier_c(%s)\n", s);
 
-  push_identifier();
+  push_string();
   while(*s)
-    concat_identifier(*s++);
-  pop();
+    concat_string(*s++);
+  pop_iden();
 }
 
 //#define YY_DEBUG
@@ -271,8 +260,11 @@ static void push_identifier_c(const char* s)
 #include "parser.c"
 
 /* scheme's read procedure */
-qz_obj_t qz_read(FILE* fp)
+qz_obj_t qz_read(qz_state_t* st, FILE* fp)
 {
+  g_st = st;
+  g_fp = fp;
+
   /* setup stack with root cell */
   qz_cell_t root;
   root.type = QZ_CT_PAIR;
@@ -282,15 +274,13 @@ qz_obj_t qz_read(FILE* fp)
   g_stack = alloc_array(sizeof(qz_obj_t));
   push(qz_from_cell(&root));
 
-  /* setup input file */
-  g_fp = fp;
-
   /* parse file */
   while(yyparse()) /**/;
 
   /* cleanup */
   free(g_stack);
   g_stack = NULL;
+  g_st = NULL;
   g_fp = NULL;
 
   return root.value.pair.first;

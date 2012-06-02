@@ -1,30 +1,11 @@
 use strict;
 use warnings;
 use Test::Base;
-use IPC::Open2;
-
-sub external {
-  my $data = shift;
-
-  my ($chld_out, $chld_in);
-  my $pid = open2($chld_out, $chld_in, @_);
-
-  print $chld_in $data;
-  close $chld_in;
-
-  local $/;
-  $data = <$chld_out>;
-  close $chld_out;
-
-  waitpid($pid, 0);
-  die "external failed" if ($?);
-
-  $data;
-}
+use Quuz::Filters;
 
 sub parse {
   my $data = shift;
-  external($data, "valgrind", "--quiet", "--leak-check=full", "--error-exitcode=1", "./quuz", "-p");
+  with_valgrind($data, "./quuz", "-p");
 }
 
 filters { input => 'parse', expected => 'chomp' };

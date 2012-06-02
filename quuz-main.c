@@ -6,14 +6,17 @@
 int main(int argc, char* argv[])
 {
   FILE* fp = stdin;
-  enum { UNKNOWN, PARSE } mode = UNKNOWN;
+  enum { UNKNOWN, PARSE, EXEC } mode = UNKNOWN;
 
   /* parse options */
   int c;
-  while((c = getopt(argc, argv, "p")) != -1) {
+  while((c = getopt(argc, argv, "pe")) != -1) {
     switch(c) {
       case 'p':
         mode = PARSE;
+        break;
+      case 'e':
+        mode = EXEC;
         break;
     }
   }
@@ -31,15 +34,17 @@ int main(int argc, char* argv[])
     }
   }
 
-  qz_obj_t obj = qz_read(fp);
+  qz_state_t* st = qz_alloc();
 
-  if(qz_is_nil(obj))
-    return EXIT_FAILURE;
+  qz_obj_t obj = qz_read(st, fp);
 
   if(mode == PARSE)
-    qz_write(obj, -1, stdout);
+    qz_write(st, obj, -1, stdout);
+  else if(mode == EXEC)
+    qz_exec(st, obj);
 
   qz_unref(obj);
+  qz_free(st);
 
   return EXIT_SUCCESS;
 }

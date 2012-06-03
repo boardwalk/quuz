@@ -18,3 +18,10 @@ __END__
 --- expected
 x
 
+=== Define
+--- input
+(define x "foo")
+(write x)
+--- expected
+"foo"
+

@@ -46,6 +46,7 @@ static qz_obj_t qz_scm_write(qz_state_t* st, qz_obj_t args)
   // (write obj port)
   qz_obj_t obj = qz_eval(st, qz_to_pair(args)->first);
   qz_write(st, obj, -1, stdout);
+  qz_unref(obj);
   return QZ_NIL;
 }
 

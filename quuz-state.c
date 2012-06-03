@@ -80,9 +80,11 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     if(qz_is_nil(value))
       return qz_error(st, "unbound variable", obj);
 
+    qz_ref(value);
     return value;
   }
 
+  qz_ref(obj);
   return obj;
 }
 

@@ -1,6 +1,7 @@
 #ifndef QUUZ_QUUZ_H
 #define QUUZ_QUUZ_H
 
+#include <setjmp.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -43,7 +44,7 @@ typedef struct { size_t value; } qz_obj_t;
 
 typedef struct qz_state {
   /* variables bindings
-   * a stack-style list with hashes or assoc-style lists elements */
+   * a stack-style list with hashes */
   qz_obj_t env;
   /* a hash mapping strings to identifiers */
   qz_obj_t str_iden;
@@ -51,6 +52,8 @@ typedef struct qz_state {
   qz_obj_t iden_str;
   /* next number to assign to an identifier */
   size_t next_iden;
+  /* state to restore when an error occurs */
+  jmp_buf error_handler;
 } qz_state_t;
 
 typedef struct qz_array {
@@ -129,6 +132,7 @@ qz_obj_t qz_make_pair(qz_obj_t first, qz_obj_t rest);
 qz_obj_t qz_make_iden(qz_state_t* st, qz_obj_t name);
 qz_obj_t qz_make_cfn(qz_cfn_t cfn);
 
+qz_obj_t qz_list_assoc(qz_obj_t obj, qz_obj_t key);
 qz_obj_t* qz_list_tail(qz_obj_t obj);
 
 void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);
@@ -144,7 +148,9 @@ void qz_set_hash(qz_obj_t* obj, qz_obj_t key, qz_obj_t value);
 /* quuz-state.c */
 qz_state_t* qz_alloc();
 void qz_free(qz_state_t* st);
-qz_obj_t qz_exec(qz_state_t* st, qz_obj_t obj);
+qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj);
+qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj);
+qz_obj_t qz_error(qz_state_t* st, const char* msg, qz_obj_t context);
 
 /* quuz-read.c */
 qz_obj_t qz_read(qz_state_t* st, FILE* fp);

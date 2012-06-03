@@ -1,6 +1,4 @@
 #include "quuz.h"
-#include <stdlib.h>
-#include <string.h>
 
 static void set_toplevel(qz_state_t* st, const char* iden, qz_cfn_t cfn)
 {
@@ -9,6 +7,9 @@ static void set_toplevel(qz_state_t* st, const char* iden, qz_cfn_t cfn)
 
 static qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
 {
+  // (define <variable> <expression>)
+  // (define (<variable> <formals> <body>)
+  // (define (<variable> . formal) <body>)
   return QZ_NIL;
 }
 

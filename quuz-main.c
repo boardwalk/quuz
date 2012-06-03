@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
   if(mode == PARSE)
     qz_write(st, obj, -1, stdout);
   else if(mode == EXEC)
-    qz_exec(st, obj);
+    qz_peval(st, obj);
 
   qz_unref(obj);
   qz_free(st);

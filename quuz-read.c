@@ -275,7 +275,7 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp)
   push(qz_from_cell(&root));
 
   /* parse file */
-  while(yyparse()) /**/;
+  yyparse();
 
   /* cleanup */
   free(g_stack);

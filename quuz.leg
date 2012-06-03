@@ -1,5 +1,5 @@
 
-start = datum
+start = intertokenSpace datum
 
 # 7.1.1 Lexical structure
 

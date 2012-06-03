@@ -12,10 +12,9 @@ filters { input => 'exec', expected => 'chomp' };
 
 __END__
 
-=== Define
-Not yet implemented
---- SKIP
+=== Write
 --- input
-(define x 1)
+(write 'x)
 --- expected
+x
 

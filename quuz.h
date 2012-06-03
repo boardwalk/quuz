@@ -132,7 +132,7 @@ qz_obj_t qz_make_pair(qz_obj_t first, qz_obj_t rest);
 qz_obj_t qz_make_iden(qz_state_t* st, qz_obj_t name);
 qz_obj_t qz_make_cfn(qz_cfn_t cfn);
 
-qz_obj_t qz_list_assoc(qz_obj_t obj, qz_obj_t key);
+qz_obj_t* qz_list_head(qz_obj_t obj);
 qz_obj_t* qz_list_tail(qz_obj_t obj);
 
 void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);

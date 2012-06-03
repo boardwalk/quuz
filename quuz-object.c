@@ -196,6 +196,13 @@ qz_obj_t qz_make_cfn(qz_cfn_t cfn)
   return qz_from_cell(cell);
 }
 
+qz_obj_t* qz_list_head(qz_obj_t obj)
+{
+  qz_cell_t* cell = qz_to_cell(obj);
+
+  return &cell->value.pair.first;
+}
+
 qz_obj_t* qz_list_tail(qz_obj_t obj)
 {
   qz_cell_t* cell = qz_to_cell(obj);
@@ -264,6 +271,12 @@ static void inner_write(qz_state_t* st, qz_obj_t o, int depth, FILE* fp, int* ne
         fputc(')', fp);
         *need_space = 1;
       }
+      else if(c->type == QZ_CT_CFN)
+      {
+        if(*need_space) fputc(' ', fp);
+        fputs("[cfn]", fp);
+        *need_space = 1;
+      }
       else if(c->type == QZ_CT_REAL)
       {
         // TODO make this readable by qz_read()
@@ -301,19 +314,6 @@ static void inner_write(qz_state_t* st, qz_obj_t o, int depth, FILE* fp, int* ne
     }
 
     fputc('"', fp);
-    *need_space = 1;
-  }
-  else if(qz_is_identifier(o))
-  {
-    if(*need_space) fputc(' ', fp);
-
-    // translate identifier to string
-    o = qz_get_hash(st->iden_str, o);
-
-    // TODO make this readable by qz_read()
-    qz_array_t* s = qz_to_string(o);
-    fprintf(fp, "%.*s", (int)s->size, QZ_ARRAY_DATA(s, char));
-
     *need_space = 1;
   }
   else if(qz_is_vector(o))
@@ -354,6 +354,19 @@ static void inner_write(qz_state_t* st, qz_obj_t o, int depth, FILE* fp, int* ne
     }
 
     fputc(')', fp);
+    *need_space = 1;
+  }
+  else if(qz_is_identifier(o))
+  {
+    if(*need_space) fputc(' ', fp);
+
+    // translate identifier to string
+    o = qz_get_hash(st->iden_str, o);
+
+    // TODO make this readable by qz_read()
+    qz_array_t* s = qz_to_string(o);
+    fprintf(fp, "%.*s", (int)s->size, QZ_ARRAY_DATA(s, char));
+
     *need_space = 1;
   }
   else if(qz_is_bool(o))

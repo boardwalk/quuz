@@ -36,14 +36,20 @@ int main(int argc, char* argv[])
 
   qz_state_t* st = qz_alloc();
 
-  qz_obj_t obj = qz_read(st, fp);
+  for(;;) {
+    qz_obj_t obj = qz_read(st, fp);
 
-  if(mode == PARSE)
-    qz_write(st, obj, -1, stdout);
-  else if(mode == EXEC)
-    qz_peval(st, obj);
+    if(qz_is_nil(obj))
+      break;
 
-  qz_unref(obj);
+    if(mode == PARSE)
+      qz_write(st, obj, -1, stdout);
+    else if(mode == EXEC)
+      qz_peval(st, obj);
+
+    qz_unref(obj);
+  }
+
   qz_free(st);
 
   return EXIT_SUCCESS;

@@ -12,45 +12,39 @@ static uint32_t hash_mem(const void* key, int len, uint32_t seed)
 
 static uint32_t inner_hash(qz_obj_t obj, uint32_t seed)
 {
-  if(qz_is_fixnum(obj) || qz_is_identifier(obj) || qz_is_bool(obj) || qz_is_char(obj))
+  if(qz_is_cell(obj))
   {
-    return hash_mem(&obj, sizeof(obj), seed);
-  }
-  else if(qz_is_string(obj))
-  {
-    qz_array_t* str = qz_to_string(obj);
-    return hash_mem(QZ_ARRAY_DATA(str, char), str->size*sizeof(char), seed);
-  }
-  else if(qz_is_bytevector(obj))
-  {
-    qz_array_t* bvec = qz_to_string(obj);
-    return hash_mem(QZ_ARRAY_DATA(bvec, uint8_t), bvec->size*sizeof(uint8_t), seed);
-  }
-  else if(qz_is_vector(obj))
-  {
-    qz_array_t* vec = qz_to_vector(obj);
-    qz_obj_t* data = QZ_ARRAY_DATA(vec, qz_obj_t);
-    for(size_t i = 0; i < vec->size; i++)
-      seed = inner_hash(data[i], seed);
-    return seed;
-  }
-  else if(qz_is_real(obj))
-  {
-    double real = qz_to_real(obj);
-    return hash_mem(&real, sizeof(real), seed);
-  }
-  else if(qz_is_pair(obj))
-  {
-    qz_pair_t* pair = qz_to_pair(obj);
-    seed = inner_hash(pair->first, seed);
-    return inner_hash(pair->rest, seed);
-  }
-  else if(qz_is_nil(obj))
-  {
-    return seed;
+    qz_cell_t* cell = qz_to_cell(obj);
+
+    if(cell->type == QZ_CT_PAIR || cell->type == QZ_CT_FUN)
+    {
+      seed = inner_hash(cell->value.pair.first, seed);
+      return inner_hash(cell->value.pair.rest, seed);
+    }
+    else if(cell->type == QZ_CT_STRING)
+    {
+      return hash_mem(QZ_CELL_DATA(cell, char), cell->value.array.size*sizeof(char), seed);
+    }
+    else if(cell->type == QZ_CT_VECTOR)
+    {
+      for(size_t i = 0; i < cell->value.array.size; i++)
+        seed = inner_hash(QZ_CELL_DATA(cell, qz_obj_t)[i], seed);
+      return seed;
+    }
+    else if(cell->type == QZ_CT_BYTEVECTOR)
+    {
+      return hash_mem(QZ_CELL_DATA(cell, uint8_t), cell->value.array.size*sizeof(uint8_t), seed);
+    }
+    else if(cell->type == QZ_CT_REAL)
+    {
+      double real = cell->value.real;
+      return hash_mem(&real, sizeof(real), seed);
+    }
+
+    assert(0); /* can't hash this type */
   }
 
-  assert(0); /* can't hash this type */
+  return hash_mem(&obj, sizeof(obj), seed);
 }
 
 static uint32_t hash_obj(qz_obj_t o)
@@ -64,28 +58,32 @@ static qz_cell_t* make_hash(int capacity)
   qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + capacity*sizeof(qz_pair_t));
   cell->type = QZ_CT_HASH;
   cell->refcount = 1;
-  cell->value.hash.size = 0;
-  cell->value.hash.capacity = capacity;
+  cell->value.array.size = 0;
+  cell->value.array.capacity = capacity;
 
-  qz_pair_t* pairs = QZ_HASH_DATA(&cell->value.hash);
+  qz_pair_t* data = QZ_CELL_DATA(cell, qz_pair_t);
 
   for(size_t i = 0; i < capacity; i++) {
-    pairs[i].first = QZ_NIL;
-    pairs[i].rest = QZ_NIL;
+    data[i].first = QZ_NIL;
+    data[i].rest = QZ_NIL;
   }
 
   return cell;
 }
 
 /* finds the pair where the given key is or would be stored */
-static qz_pair_t* get_hash(qz_hash_t* hash, qz_obj_t key)
+static qz_pair_t* get_hash(qz_cell_t* cell, qz_obj_t key)
 {
+  assert(cell->type == QZ_CT_HASH);
+
+  qz_pair_t* data = QZ_CELL_DATA(cell, qz_pair_t);
+
   for(uint32_t i = hash_obj(key); /**/; i++)
   {
-    qz_pair_t* pair = QZ_HASH_DATA(hash) + (i % hash->capacity);
+    size_t slot = i % cell->value.array.capacity;
 
-    if(qz_is_nil(pair->first) || qz_equal(pair->first, key))
-      return pair;
+    if(qz_is_nil(data[slot].first) || qz_equal(data[slot].first, key))
+      return &data[slot];
   }
 }
 
@@ -93,19 +91,16 @@ static qz_pair_t* get_hash(qz_hash_t* hash, qz_obj_t key)
 static void realloc_hash(qz_obj_t* obj)
 {
   qz_cell_t* cell = qz_to_cell(*obj);
-  qz_hash_t* hash = &cell->value.hash;
+  qz_cell_t* new_cell = make_hash(cell->value.array.capacity * 2);
 
-  qz_cell_t* new_cell = make_hash(hash->capacity * 2);
-  qz_hash_t* new_hash = &new_cell->value.hash;
-
-  for(size_t i = 0; i < hash->capacity; i++)
+  for(size_t i = 0; i < cell->value.array.capacity; i++)
   {
-    qz_pair_t* pair = QZ_HASH_DATA(hash) + i;
+    qz_pair_t* pair = QZ_CELL_DATA(cell, qz_pair_t) + i;
 
     if(qz_is_nil(pair->first) || qz_is_nil(pair->rest))
       continue;
 
-    qz_pair_t* new_pair = get_hash(new_hash, pair->first);
+    qz_pair_t* new_pair = get_hash(new_cell, pair->first);
 
     *new_pair = *pair;
   }
@@ -126,7 +121,7 @@ qz_obj_t qz_make_hash()
  * returns QZ_NIL if not found */
 qz_obj_t qz_get_hash(qz_obj_t obj, qz_obj_t key)
 {
-  return get_hash(qz_to_hash(obj), key)->rest;
+  return get_hash(qz_to_cell(obj), key)->rest;
 }
 
 /* set a value into a hash object given a key
@@ -134,18 +129,18 @@ qz_obj_t qz_get_hash(qz_obj_t obj, qz_obj_t key)
  * obj may be rewritten if reallocated */
 void qz_set_hash(qz_obj_t* obj, qz_obj_t key, qz_obj_t value)
 {
-  qz_hash_t* hash = qz_to_hash(*obj);
-  qz_pair_t* pair = get_hash(hash, key);
+  qz_cell_t* cell = qz_to_cell(*obj);
+  qz_pair_t* pair = get_hash(cell, key);
 
   if(qz_is_nil(pair->first))
-    hash->size++;
+    cell->value.array.size++;
 
   qz_unref(pair->first);
   pair->first = key;
   qz_unref(pair->rest);
   pair->rest = value;
 
-  if(hash->size * 10 > hash->capacity * 7)
+  if(cell->value.array.size * 10 > cell->value.array.capacity * 7)
     realloc_hash(obj);
 }
 

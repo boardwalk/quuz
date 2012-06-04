@@ -178,7 +178,7 @@ prefix10 = radix10 exactness
 prefix16 = radix16 exactness
   | exactness radix16
 
-infinity = '+inf.0' | '-inf.0' | '+nan.0'
+#infinity = '+inf.0' | '-inf.0' | '+nan.0'
 
 suffix = (exponentMarker sign digit10+)?
 
@@ -225,7 +225,7 @@ simpleDatum = b:booleanToken {append_bool(b);}
   | n:numberToken {append_number(n);}
   | c:characterToken {append_char(c);}
   | {push_string();} stringToken {pop();}
-  | {push_string();} symbol {pop_iden();}
+  | {push_string();} symbol {pop_sym();}
   | bytevector
 
 symbol = identifierToken
@@ -239,10 +239,10 @@ list = {push_pair();} listBeginToken datum* listEndToken {pop();}
 
 abbreviation = {push_pair();} abbrevPrefix datum {pop();}
 
-abbrevPrefix = quoteToken {push_identifier_c("quote");}
-  | quasiquoteToken {push_identifier_c("quasiquote");}
-  | unquoteSplicingToken {push_identifier_c("unquote-splicing");}
-  | unquoteToken {push_identifier_c("unquote");}
+abbrevPrefix = quoteToken {append_sym("quote");}
+  | quasiquoteToken {append_sym("quasiquote");}
+  | unquoteSplicingToken {append_sym("unquote-splicing");}
+  | unquoteToken {append_sym("unquote");}
 
 vector = {push_vector();} vectorBeginToken datum* listEndToken {pop();}
 

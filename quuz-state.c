@@ -26,9 +26,9 @@ qz_state_t* qz_alloc()
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));
   st->env = qz_make_pair(qz_make_hash(), QZ_NIL);
-  st->str_iden = qz_make_hash();
-  st->iden_str = qz_make_hash();
-  st->next_iden = 0;
+  st->name_sym = qz_make_hash();
+  st->sym_name = qz_make_hash();
+  st->next_sym = 0;
   qz_init_lib(st);
   return st;
 }
@@ -37,8 +37,8 @@ qz_state_t* qz_alloc()
 void qz_free(qz_state_t* st)
 {
   qz_unref(st->env);
-  qz_unref(st->str_iden);
-  qz_unref(st->iden_str);
+  qz_unref(st->name_sym);
+  qz_unref(st->sym_name);
   free(st);
 }
 
@@ -58,22 +58,22 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
   {
     qz_pair_t* pair = qz_to_pair(obj);
 
-    if(!qz_is_identifier(pair->first))
-      return qz_error(st, "list does not start with an identifier", obj);
+    if(!qz_is_sym(pair->first))
+      return qz_error(st, "list does not start with an symbol", obj);
 
     qz_obj_t value = qz_lookup(st, pair->first);
 
     if(qz_is_nil(value))
       return qz_error(st, "unbound variable", obj);
 
-    if(!qz_is_cfn(value))
+    if(!qz_is_cfun(value))
       return qz_error(st, "uncallable value", obj);
 
-    qz_cfn_t cfn = qz_to_cfn(value);
-    return cfn(st, pair->rest);
+    qz_cfun_t cfun = qz_to_cfun(value);
+    return cfun(st, pair->rest);
   }
 
-  if(qz_is_identifier(obj))
+  if(qz_is_sym(obj))
   {
     qz_obj_t value = qz_lookup(st, obj);
 

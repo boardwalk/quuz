@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define INITIAL_CAPACITY 16
+
 #define YY_INPUT(buf, result, max_size)            \
   {                                                \
     int yyc = fgetc(g_fp);                         \
@@ -12,87 +14,84 @@
 
 static qz_state_t* g_st = NULL;
 static FILE* g_fp = NULL;
-static qz_array_t* g_stack = NULL;
+static qz_obj_t g_stack;
 static int g_dotted_datum = 0;
 
-static int is_zero_or_power_of_two(size_t v)
+static qz_obj_t make_array(qz_cell_type_t type, size_t elem_size)
 {
-  return !(v & (v - 1));
+  qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + INITIAL_CAPACITY*elem_size);
+
+  cell->type = type;
+  cell->refcount = 1;
+  cell->value.array.size = 0;
+  cell->value.array.capacity = INITIAL_CAPACITY;
+
+  return qz_from_cell(cell);
 }
 
-static qz_array_t* alloc_array(size_t elem_size)
-{
-  qz_array_t* arr = (qz_array_t*)malloc(sizeof(qz_array_t) + 16*elem_size);
-  assert(((size_t)arr & 3) == 0);
-  arr->size = 0;
-  arr->refcount = 1;
-
-  return arr;
-}
-
-static qz_array_t* resize_array(qz_array_t* arr, size_t elem_size)
+/* double the capacity of an array */
+static qz_cell_t* grow_array(qz_cell_t* cell, size_t elem_size)
 {
   /* if someone else has a reference to this array, you're gonna have a bad time */
-  assert(arr->refcount == 1);
-
-  /* do nothing if resize not needed */
-  if(!is_zero_or_power_of_two(arr->size))
-    return arr;
-
-  if(arr->size < 16)
-    return arr;
+  assert(cell->refcount == 1);
 
   /* double capacity */
-  size_t capacity = arr->size * 2;
+  size_t capacity = cell->value.array.capacity * 2;
 
   /* make copy of array */
-  qz_array_t* new_arr = (qz_array_t*)malloc(sizeof(qz_array_t) + capacity*elem_size);
-  assert(((size_t)new_arr & 3) == 0);
+  qz_cell_t* new_cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + capacity*elem_size);
+  assert(((size_t)new_cell & 7) == 0);
 
-  new_arr->size = arr->size;
-  new_arr->refcount = arr->refcount;
+  new_cell->type = cell->type;
+  new_cell->refcount = cell->refcount;
+  new_cell->value.array.size = cell->value.array.size;
+  new_cell->value.array.capacity = cell->value.array.capacity;
 
-  memcpy(QZ_ARRAY_DATA(new_arr, char), QZ_ARRAY_DATA(arr, char), arr->size*elem_size);
+  memcpy(QZ_CELL_DATA(new_cell, char), QZ_CELL_DATA(cell, char), cell->value.array.size*elem_size);
 
   /* cleanup */
-  free(arr);
+  free(cell);
 
-  return new_arr;
+  return new_cell;
 }
 
 static void concat_string(char c)
 {
   //printf("concat_string(%c)\n", c);
 
-  qz_obj_t* obj = QZ_ARRAY_DATA(g_stack, qz_obj_t) + (g_stack->size - 1);
-  qz_array_t* str = qz_to_string(*obj);
+  qz_obj_t* obj = qz_vector_tail(g_stack);
+  qz_cell_t* cell = qz_to_cell(*obj);
 
   /* resize if necessary */
-  str = resize_array(str, sizeof(char));
-  *obj = qz_from_string(str);
+  if(cell->value.array.size == cell->value.array.capacity) {
+    cell = grow_array(cell, sizeof(char));
+    *obj = qz_from_cell(cell);
+  }
 
   /* append character */
-  QZ_ARRAY_DATA(str, char)[str->size++] = c;
+  QZ_CELL_DATA(cell, char)[cell->value.array.size++] = c;
 }
 
 static void concat_bytevector(int b)
 {
   //printf("concat_bytevector(%d)\n", b);
 
-  qz_obj_t* obj = QZ_ARRAY_DATA(g_stack, qz_obj_t) + (g_stack->size - 1);
-  qz_array_t* bvec = qz_to_bytevector(*obj);
+  qz_obj_t* obj = qz_vector_tail(g_stack);
+  qz_cell_t* cell = qz_to_cell(*obj);
 
   /* resize if necessary */
-  bvec = resize_array(bvec, sizeof(uint8_t));
-  *obj = qz_from_bytevector(bvec);
+  if(cell->value.array.size == cell->value.array.capacity) {
+    cell = grow_array(cell, sizeof(uint8_t));
+    *obj = qz_from_cell(cell);
+  }
 
   /* append byte */
-  QZ_ARRAY_DATA(bvec, uint8_t)[bvec->size++] = b;
+  QZ_CELL_DATA(cell, uint8_t)[cell->value.array.size++] = b;
 }
 
 static void append(qz_obj_t value_obj)
 {
-  qz_obj_t* obj = QZ_ARRAY_DATA(g_stack, qz_obj_t) + (g_stack->size - 1);
+  qz_obj_t* obj = qz_vector_tail(g_stack);
 
   //printf("append(%lu)\n", value_obj.value);
   //printf("  stack obj: "); qz_write(*obj, -1, stdout); fputc('\n', stdout);
@@ -134,14 +133,16 @@ static void append(qz_obj_t value_obj)
   }
   else if(qz_is_vector(*obj))
   {
-    qz_array_t* vec = qz_to_vector(*obj);
+    qz_cell_t* cell = qz_to_cell(*obj);
 
     /* resize if necessary */
-    vec = resize_array(vec, sizeof(qz_obj_t));
-    *obj = qz_from_vector(vec);
+    if(cell->value.array.size == cell->value.array.capacity) {
+      cell = grow_array(cell, sizeof(qz_obj_t));
+      *obj = qz_from_cell(cell);
+    }
 
-    /* append object */
-    QZ_ARRAY_DATA(vec, qz_obj_t)[vec->size++] = value_obj;
+    /* append character */
+    QZ_CELL_DATA(cell, qz_obj_t)[cell->value.array.size++] = value_obj;
   }
   else
   {
@@ -156,8 +157,16 @@ static void push(qz_obj_t obj)
 {
   //printf("push()\n");
 
-  g_stack = resize_array(g_stack, sizeof(qz_obj_t));
-  QZ_ARRAY_DATA(g_stack, qz_obj_t)[g_stack->size++] = obj;
+  qz_cell_t* stack_cell = qz_to_cell(g_stack);
+
+  /* resize if necessary */
+  if(stack_cell->value.array.size == stack_cell->value.array.capacity) {
+    stack_cell = grow_array(stack_cell, sizeof(qz_obj_t));
+    g_stack = qz_from_cell(stack_cell);
+  }
+  
+  /* append object */
+  QZ_CELL_DATA(stack_cell, qz_obj_t)[stack_cell->value.array.size++] = obj;
 }
 
 /* pop an object from the stack, appending it to the container at the new top of the stack */
@@ -165,21 +174,27 @@ static void pop()
 {
   //printf("pop()\n");
 
-  assert(g_stack->size > 1); /* never pop the root element */
-  qz_obj_t obj = QZ_ARRAY_DATA(g_stack, qz_obj_t)[--g_stack->size];
+  qz_cell_t* stack_cell = qz_to_cell(g_stack);
+
+  assert(stack_cell->value.array.size > 1); /* never pop the root element */
+
+  qz_obj_t obj = QZ_CELL_DATA(stack_cell, qz_obj_t)[--stack_cell->value.array.size];
 
   append(obj);
 }
 
-/* pop a string from the stack, appending the matching identifier to the container at the top of the stack */
-static void pop_iden()
+/* pop a string from the stack, appending the matching symbol to the container at the top of the stack */
+static void pop_sym()
 {
   //printf("pop_iden()\n");
 
-  assert(g_stack->size > 1); /* never poop the root element */
-  qz_obj_t obj = QZ_ARRAY_DATA(g_stack, qz_obj_t)[--g_stack->size];
+  qz_cell_t* stack_cell = qz_to_cell(g_stack);
 
-  append(qz_make_iden(g_st, obj));
+  assert(stack_cell->value.array.size > 1); /* never pop the root element */
+
+  qz_obj_t obj = QZ_CELL_DATA(stack_cell, qz_obj_t)[--stack_cell->value.array.size];
+
+  append(qz_make_sym(g_st, obj));
 }
 
 /* push a pair onto the stack */
@@ -201,7 +216,7 @@ static void push_vector()
 {
   //printf("push_vector()\n");
 
-  push(qz_from_vector(alloc_array(sizeof(qz_obj_t))));
+  push(make_array(QZ_CT_VECTOR, sizeof(qz_obj_t)));
 }
 
 /* push a bytevector onto the stack */
@@ -209,7 +224,7 @@ static void push_bytevector()
 {
   //printf("push_bytevector()\n");
 
-  push(qz_from_bytevector(alloc_array(sizeof(uint8_t))));
+  push(make_array(QZ_CT_BYTEVECTOR, sizeof(uint8_t)));
 }
 
 /* push a string onto the stack */
@@ -217,7 +232,7 @@ static void push_string()
 {
   //printf("push_string()\n");
 
-  push(qz_from_string(alloc_array(sizeof(char))));
+  push(make_array(QZ_CT_STRING, sizeof(char)));
 }
 
 /* append a char value to the container at the top of the stack */
@@ -245,14 +260,14 @@ static void append_bool(int b)
 }
 
 /* append an identifier constructed from a C-style string to container at the top of the stack */
-static void push_identifier_c(const char* s)
+static void append_sym(const char* s)
 {
   //printf("push_identifier_c(%s)\n", s);
 
   push_string();
   while(*s)
     concat_string(*s++);
-  pop_iden();
+  pop_sym();
 }
 
 //#define YY_DEBUG
@@ -266,23 +281,24 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp)
   g_fp = fp;
 
   /* setup stack with root cell */
-  qz_cell_t root;
-  root.type = QZ_CT_PAIR;
-  root.value.pair.first = QZ_NIL;
-  root.value.pair.rest = QZ_NIL;
+  g_stack = make_array(QZ_CT_VECTOR, sizeof(qz_obj_t));
 
-  g_stack = alloc_array(sizeof(qz_obj_t));
-  push(qz_from_cell(&root));
+  qz_obj_t root = qz_make_pair(QZ_NIL, QZ_NIL);
+  push(root);
 
   /* parse file */
   yyparse();
 
+  /* grab result */
+  qz_obj_t result = *qz_list_head(root);
+  qz_ref(result);
+
   /* cleanup */
-  free(g_stack);
-  g_stack = NULL;
+  qz_unref(g_stack);
+  g_stack = QZ_NIL;
   g_st = NULL;
   g_fp = NULL;
 
-  return root.value.pair.first;
+  return result;
 }
 

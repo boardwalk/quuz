@@ -1,18 +1,20 @@
 #include "quuz.h"
 
-static void set_toplevel(qz_state_t* st, const char* iden, qz_cfn_t cfn)
+#define ALIGNED __attribute__ ((aligned (8)))
+
+static void set_toplevel(qz_state_t* st, const char* name, qz_cfun_t cfun)
 {
-  qz_set_hash(qz_list_tail(st->env), qz_make_iden(st, qz_make_string(iden)), qz_make_cfn(cfn));
+  qz_set_hash(qz_list_tail(st->env), qz_make_sym(st, qz_make_string(name)), qz_from_cfun(cfun));
 }
 
-static qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
+static ALIGNED qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
 {
   // (define <variable> <expression>)
   // (define (<variable> <formals> <body>)
   // (define (<variable> . <formal>) <body>)
   qz_pair_t* pair = qz_to_pair(args);
 
-  if(qz_is_identifier(pair->first))
+  if(qz_is_sym(pair->first))
   {
     if(!qz_is_pair(pair->rest))
     {
@@ -34,13 +36,13 @@ static qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
   return QZ_NIL;
 }
 
-static qz_obj_t qz_scm_quote(qz_state_t* st, qz_obj_t args)
+static ALIGNED qz_obj_t qz_scm_quote(qz_state_t* st, qz_obj_t args)
 {
   // (quote a) => a
   return qz_to_pair(args)->first;
 }
 
-static qz_obj_t qz_scm_write(qz_state_t* st, qz_obj_t args)
+static ALIGNED qz_obj_t qz_scm_write(qz_state_t* st, qz_obj_t args)
 {
   // (write obj)
   // (write obj port)

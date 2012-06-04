@@ -167,7 +167,6 @@ qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj);
 qz_obj_t qz_vector_head(qz_obj_t obj);
 qz_obj_t qz_vector_tail(qz_obj_t obj);
 
-void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);
 qz_obj_t qz_ref(qz_obj_t obj);
 qz_obj_t qz_unref(qz_obj_t obj);
 int qz_equal(qz_obj_t a, qz_obj_t b);
@@ -186,5 +185,8 @@ qz_obj_t qz_error(qz_state_t* st, const char* msg, qz_obj_t context);
 
 /* quuz-read.c */
 qz_obj_t qz_read(qz_state_t* st, FILE* fp);
+
+/* quuz-write.c */
+void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);
 
 #endif /* QUUZ_QUUZ_H */

@@ -15,27 +15,28 @@ static uint32_t inner_hash(qz_obj_t obj, uint32_t seed)
   if(qz_is_cell(obj))
   {
     qz_cell_t* cell = qz_to_cell(obj);
+    qz_cell_type_t type = qz_type(cell);
 
-    if(cell->type == QZ_CT_PAIR || cell->type == QZ_CT_FUN)
+    if(type == QZ_CT_PAIR || type == QZ_CT_FUN)
     {
       seed = inner_hash(cell->value.pair.first, seed);
       return inner_hash(cell->value.pair.rest, seed);
     }
-    else if(cell->type == QZ_CT_STRING)
+    else if(type == QZ_CT_STRING)
     {
       return hash_mem(QZ_CELL_DATA(cell, char), cell->value.array.size*sizeof(char), seed);
     }
-    else if(cell->type == QZ_CT_VECTOR)
+    else if(type == QZ_CT_VECTOR)
     {
       for(size_t i = 0; i < cell->value.array.size; i++)
         seed = inner_hash(QZ_CELL_DATA(cell, qz_obj_t)[i], seed);
       return seed;
     }
-    else if(cell->type == QZ_CT_BYTEVECTOR)
+    else if(type == QZ_CT_BYTEVECTOR)
     {
       return hash_mem(QZ_CELL_DATA(cell, uint8_t), cell->value.array.size*sizeof(uint8_t), seed);
     }
-    else if(cell->type == QZ_CT_REAL)
+    else if(type == QZ_CT_REAL)
     {
       double real = cell->value.real;
       return hash_mem(&real, sizeof(real), seed);
@@ -55,9 +56,7 @@ static uint32_t hash_obj(qz_obj_t o)
 /* create a new hash object with the given capacity */
 static qz_cell_t* make_hash(int capacity)
 {
-  qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + capacity*sizeof(qz_pair_t));
-  cell->type = QZ_CT_HASH;
-  cell->refcount = 1;
+  qz_cell_t* cell = qz_make_cell(QZ_CT_HASH, capacity*sizeof(qz_pair_t));
   cell->value.array.size = 0;
   cell->value.array.capacity = capacity;
 
@@ -74,7 +73,7 @@ static qz_cell_t* make_hash(int capacity)
 /* finds the pair where the given key is or would be stored */
 static qz_pair_t* get_hash(qz_cell_t* cell, qz_obj_t key)
 {
-  assert(cell->type == QZ_CT_HASH);
+  assert(qz_type(cell) == QZ_CT_HASH);
 
   qz_pair_t* data = QZ_CELL_DATA(cell, qz_pair_t);
 
@@ -91,6 +90,8 @@ static qz_pair_t* get_hash(qz_cell_t* cell, qz_obj_t key)
 static void realloc_hash(qz_obj_t* obj)
 {
   qz_cell_t* cell = qz_to_cell(*obj);
+  assert(qz_refcount(cell) == 1);
+
   qz_cell_t* new_cell = make_hash(cell->value.array.capacity * 2);
 
   for(size_t i = 0; i < cell->value.array.capacity; i++)
@@ -106,7 +107,7 @@ static void realloc_hash(qz_obj_t* obj)
   }
 
   // replace old cell with new
-  new_cell->refcount = cell->refcount;
+  new_cell->info = cell->info;
   free(cell);
   *obj = qz_from_cell(new_cell);
 }

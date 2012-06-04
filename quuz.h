@@ -6,16 +6,16 @@
 #include <stdint.h>
 #include <stdio.h>
 
-/*   000 even fixnum (value is ptr >> 2)
+/*   000 even fixnum (value is << 2)
  *   001 short immediate (see below)
  *   010 cell
  *   011 cfun
- *   100 odd fixnum (value is ptr >> 2)
- * 00001 symbol (value is ptr >> 5)
- * 01001 boolean (value is ptr >> 5)
- * 10001 character (value is ptr >> 5) */
+ *   100 odd fixnum (value is << 2)
+ * 00001 symbol (value is << 5)
+ * 01001 boolean (value is << 5)
+ * 10001 character (value is << 5) */
 
-#define QZ_CELL_DATA(a, t) ((t*)((char*)(a) + sizeof(qz_cell_t)))
+#define QZ_CELL_DATA(c, t) ((t*)((char*)(c) + sizeof(qz_cell_t)))
 
 typedef enum {
   QZ_PT_EVEN_FIXNUM = 0,
@@ -30,19 +30,34 @@ typedef enum {
 
 typedef enum {
   QZ_CT_PAIR, /* qz_pair_t */
-  QZ_CT_FUN, /* qz_pair_t, environment in first, body in rest */
+  QZ_CT_FUN, /* qz_pair_t, environment in first, formals & body in rest */
   QZ_CT_STRING, /* qz_array_t with char elements follows qz_cell_t */
   QZ_CT_VECTOR, /* qz_array_t with qz_obj_t elements */
   QZ_CT_BYTEVECTOR, /* qz_array_t with uint8_t elements */
   QZ_CT_HASH, /* qz_hash_t with qz_pair_t elements */
   QZ_CT_REAL
+  /* 7 values, 3 bits */
 } qz_cell_type_t;
+
+typedef enum {
+  QZ_CC_BLACK, /* in use or free */
+  QZ_CC_GRAY, /* possible member of cycle */
+  QZ_CC_WHITE, /* member of garbage cycle */
+  QZ_CC_PURPLE, /* possible root of cycle */
+  QZ_CC_GREEN, /* acyclic */
+  QZ_CC_RED, /* candidate cycle undergoing sum-computation */
+  QZ_CC_ORANGE /* candidate cycle awaiting epoch boundary */
+  /* 7 values, 3 bits */
+} qz_cell_color_t;
 
 typedef struct { size_t value; } qz_obj_t;
 
 typedef struct qz_state {
   /* variables bindings
-   * a stack-style list with hashes */
+   * a list of a list of hashes
+   * the outer list is a stack of environment for currently executing functions
+   * the inner list is a stack of scopes for a particular function
+   * each hash maps symbols to values */
   qz_obj_t env;
   /* a hash mapping names to symbols */
   qz_obj_t name_sym;
@@ -68,8 +83,12 @@ typedef struct qz_array {
 } qz_array_t;
 
 typedef struct qz_cell {
-  uint16_t type; /* qz_cell_type_t */
-  uint16_t refcount;
+  // contains four fields, lsb to msb
+  // refcount, sizeof(size_t)*CHAR_BIT - 7 bits
+  // type, 3 bits, qz_cell_type_t
+  // color, 3 bits, qz_cell_color_t
+  // buffered, 1 bit
+  size_t info;
   union {
     qz_pair_t pair;
     qz_array_t array;
@@ -83,6 +102,16 @@ extern qz_obj_t const QZ_NIL;
 extern qz_obj_t const QZ_TRUE;
 extern qz_obj_t const QZ_FALSE;
 
+size_t qz_refcount(qz_cell_t* cell);
+qz_cell_type_t qz_type(qz_cell_t* cell);
+qz_cell_color_t qz_color(qz_cell_t* cell);
+size_t qz_buffered(qz_cell_t* cell);
+
+void qz_set_refcount(qz_cell_t* cell, size_t rc);
+void qz_set_type(qz_cell_t* cell, qz_cell_type_t ct);
+void qz_set_color(qz_cell_t* cell, qz_cell_color_t cc);
+void qz_set_buffered(qz_cell_t* cell, size_t bu);
+
 int qz_is_nil(qz_obj_t obj); /* TODO this checks for a null pointer to a cell, not a pair with null pointers (empty list) confusing? */
 int qz_is_fixnum(qz_obj_t obj);
 int qz_is_cell(qz_obj_t obj);
@@ -91,7 +120,9 @@ int qz_is_sym(qz_obj_t);
 int qz_is_bool(qz_obj_t);
 int qz_is_char(qz_obj_t);
 
+qz_cell_type_t qz_cell_type(qz_cell_t* cell);
 int qz_is_pair(qz_obj_t);
+int qz_is_fun(qz_obj_t);
 int qz_is_string(qz_obj_t);
 int qz_is_vector(qz_obj_t);
 int qz_is_bytevector(qz_obj_t);
@@ -101,6 +132,7 @@ int qz_is_real(qz_obj_t);
 intptr_t qz_to_fixnum(qz_obj_t);
 qz_cell_t* qz_to_cell(qz_obj_t);
 qz_cfun_t qz_to_cfun(qz_obj_t);
+size_t qz_to_sym(qz_obj_t);
 int qz_to_bool(qz_obj_t);
 char qz_to_char(qz_obj_t);
 
@@ -118,19 +150,26 @@ qz_obj_t qz_from_cfun(qz_cfun_t);
 qz_obj_t qz_from_bool(int);
 qz_obj_t qz_from_char(char);
 
+qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size);
 qz_obj_t qz_make_string(const char* str);
 qz_obj_t qz_make_pair(qz_obj_t first, qz_obj_t rest);
 qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name);
 
-qz_obj_t* qz_list_head(qz_obj_t obj);
-qz_obj_t* qz_list_tail(qz_obj_t obj);
+qz_obj_t* qz_list_head_ptr(qz_obj_t obj);
+qz_obj_t* qz_list_tail_ptr(qz_obj_t obj);
 
-qz_obj_t* qz_vector_head(qz_obj_t obj);
-qz_obj_t* qz_vector_tail(qz_obj_t obj);
+qz_obj_t qz_list_head(qz_obj_t obj);
+qz_obj_t qz_list_tail(qz_obj_t obj);
+
+qz_obj_t* qz_vector_head_ptr(qz_obj_t obj);
+qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj);
+
+qz_obj_t qz_vector_head(qz_obj_t obj);
+qz_obj_t qz_vector_tail(qz_obj_t obj);
 
 void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);
-void qz_ref(qz_obj_t obj);
-void qz_unref(qz_obj_t obj);
+qz_obj_t qz_ref(qz_obj_t obj);
+qz_obj_t qz_unref(qz_obj_t obj);
 int qz_equal(qz_obj_t a, qz_obj_t b);
 
 /* quuz-hash.c */

@@ -43,9 +43,13 @@ int main(int argc, char* argv[])
       break;
 
     if(mode == PARSE)
+    {
       qz_write(st, obj, -1, stdout);
+    }
     else if(mode == EXEC)
-      qz_peval(st, obj);
+    {
+      qz_unref(qz_peval(st, obj));
+    }
 
     qz_unref(obj);
   }

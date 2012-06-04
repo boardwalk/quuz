@@ -3,10 +3,40 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h> // CHAR_BIT
+
+#define QZ_INFO_BITS (sizeof(size_t)*CHAR_BIT)
 
 qz_obj_t const QZ_NIL = { (size_t)NULL | QZ_PT_CELL };
 qz_obj_t const QZ_TRUE = { (1 << 4) | QZ_PT_BOOL };
 qz_obj_t const QZ_FALSE = { (0 << 4) | QZ_PT_BOOL };
+
+/* cell->info accessors */
+size_t qz_refcount(qz_cell_t* cell) {
+  return cell->info & (~(size_t)0 >> 7);
+}
+qz_cell_type_t qz_type(qz_cell_t* cell) {
+  return (cell->info >> (QZ_INFO_BITS - 7)) & 7;
+}
+qz_cell_color_t qz_color(qz_cell_t* cell) {
+  return (cell->info >> (QZ_INFO_BITS - 4)) & 7;
+}
+size_t qz_buffered(qz_cell_t* cell) {
+  return (cell->info >> (QZ_INFO_BITS - 1)) & 1;
+}
+
+void qz_set_refcount(qz_cell_t* cell, size_t rc) {
+  cell->info = (cell->info & (~(size_t)0 << (QZ_INFO_BITS - 7))) | rc;
+}
+void qz_set_type(qz_cell_t* cell, qz_cell_type_t ct) {
+  cell->info = (cell->info & ~((size_t)7 << (QZ_INFO_BITS - 7))) | ((size_t)ct << (QZ_INFO_BITS - 7));
+}
+void qz_set_color(qz_cell_t* cell, qz_cell_color_t cc) {
+  cell->info = (cell->info & ~((size_t)7 << (QZ_INFO_BITS - 4))) | ((size_t)cc << (QZ_INFO_BITS - 4));
+}
+void qz_set_buffered(qz_cell_t* cell, size_t bu) {
+  cell->info = (cell->info & ~((size_t)1 << (QZ_INFO_BITS - 1))) | (bu << (QZ_INFO_BITS - 1));
+}
 
 /* qz_is_<type> */
 int qz_is_nil(qz_obj_t obj) {
@@ -33,7 +63,7 @@ int qz_is_char(qz_obj_t obj) {
 static int cell_of_type(qz_obj_t obj, qz_cell_type_t type) {
   if(qz_is_cell(obj)) {
     qz_cell_t* cell = qz_to_cell(obj);
-    if(cell) return cell->type == type;
+    if(cell) return qz_type(cell) == type;
   }
   return 0;
 }
@@ -66,11 +96,15 @@ intptr_t qz_to_fixnum(qz_obj_t obj) {
 }
 qz_cell_t* qz_to_cell(qz_obj_t obj) {
   assert(qz_is_cell(obj));
-  return (qz_cell_t*)(obj.value & ~7);
+  return (qz_cell_t*)(obj.value & ~(size_t)7);
 }
 qz_cfun_t qz_to_cfun(qz_obj_t obj) {
   assert(qz_is_cfun(obj));
-  return (qz_cfun_t)(obj.value & ~7);
+  return (qz_cfun_t)(obj.value & ~(size_t)7);
+}
+size_t qz_to_sym(qz_obj_t obj) {
+  assert(qz_is_sym(obj));
+  return obj.value >> 5;
 }
 int qz_to_bool(qz_obj_t obj) {
   assert(qz_is_bool(obj));
@@ -127,14 +161,26 @@ qz_obj_t qz_from_char(char c) {
   return (qz_obj_t) { (c << 5) | QZ_PT_CHAR };
 }
 
+qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size)
+{
+  qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + extra_size);
+
+  memset(cell, 0, sizeof(qz_cell_t));
+
+  qz_set_refcount(cell, 1);
+  qz_set_type(cell, type);
+  qz_set_color(cell, QZ_CC_BLACK);
+  qz_set_buffered(cell, 0);
+
+  return cell;
+}
+
 qz_obj_t qz_make_string(const char* str)
 {
   size_t str_size = strlen(str);
 
-  qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + str_size*sizeof(char));
+  qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, str_size*sizeof(char));
 
-  cell->type = QZ_CT_STRING;
-  cell->refcount = 1;
   cell->value.array.size = str_size;
   cell->value.array.capacity = str_size;
 
@@ -145,10 +191,8 @@ qz_obj_t qz_make_string(const char* str)
 
 qz_obj_t qz_make_pair(qz_obj_t first, qz_obj_t rest)
 {
-  qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t));
+  qz_cell_t* cell = qz_make_cell(QZ_CT_PAIR, 0);
 
-  cell->type = QZ_CT_PAIR;
-  cell->refcount = 1;
   cell->value.pair.first = first;
   cell->value.pair.rest = rest;
 
@@ -174,48 +218,43 @@ qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name)
   return sym;
 }
 
-qz_obj_t* qz_list_head(qz_obj_t obj)
+qz_obj_t* qz_list_head_ptr(qz_obj_t obj)
 {
   assert(qz_is_pair(obj));
-
   qz_cell_t* cell = qz_to_cell(obj);
-
   return &cell->value.pair.first;
 }
 
-qz_obj_t* qz_list_tail(qz_obj_t obj)
+qz_obj_t* qz_list_tail_ptr(qz_obj_t obj)
 {
   assert(qz_is_pair(obj));
-
   qz_cell_t* cell = qz_to_cell(obj);
-
   while(!qz_is_nil(cell->value.pair.rest))
     cell = qz_to_cell(cell->value.pair.rest);
-
   return &cell->value.pair.first;
 }
 
-qz_obj_t* qz_vector_head(qz_obj_t obj)
+qz_obj_t qz_list_head(qz_obj_t obj) { return *qz_list_head_ptr(obj); }
+qz_obj_t qz_list_tail(qz_obj_t obj) { return *qz_list_tail_ptr(obj); }
+
+qz_obj_t* qz_vector_head_ptr(qz_obj_t obj)
 {
   assert(qz_is_vector(obj));
-
   qz_cell_t* cell = qz_to_cell(obj);
-
   assert(cell->value.array.size != 0);
-
   return QZ_CELL_DATA(cell, qz_obj_t);
 }
 
-qz_obj_t* qz_vector_tail(qz_obj_t obj)
+qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj)
 {
   assert(qz_is_vector(obj));
-
   qz_cell_t* cell = qz_to_cell(obj);
-
   assert(cell->value.array.size != 0);
-
   return QZ_CELL_DATA(cell, qz_obj_t) + (cell->value.array.size - 1);
 }
+
+qz_obj_t qz_vector_head(qz_obj_t obj) { return *qz_vector_head_ptr(obj); }
+qz_obj_t qz_vector_tail(qz_obj_t obj) { return *qz_vector_tail_ptr(obj); }
 
 static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* need_space);
 
@@ -228,7 +267,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     return;
   }
 
-  if(cell->type == QZ_CT_PAIR)
+  if(qz_type(cell) == QZ_CT_PAIR)
   {
     qz_pair_t* pair = &cell->value.pair;
 
@@ -272,13 +311,13 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputc(')', fp);
     *need_space = 1;
   }
-  else if(cell->type == QZ_CT_FUN)
+  else if(qz_type(cell) == QZ_CT_FUN)
   {
     if(*need_space) fputc(' ', fp);
     fputs("[fun]", fp); /* TODO How is scheme-defined function supposed to be written? */
     *need_space = 1;
   }
-  else if(cell->type == QZ_CT_STRING)
+  else if(qz_type(cell) == QZ_CT_STRING)
   {
     if(*need_space) fputc(' ', fp);
 
@@ -298,7 +337,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputc('"', fp);
     *need_space = 1;
   }
-  else if(cell->type == QZ_CT_VECTOR)
+  else if(qz_type(cell) == QZ_CT_VECTOR)
   {
     if(*need_space) fputc(' ', fp);
 
@@ -318,7 +357,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputc(')', fp);
     *need_space = 1;
   }
-  else if(cell->type == QZ_CT_BYTEVECTOR)
+  else if(qz_type(cell) == QZ_CT_BYTEVECTOR)
   {
     if(*need_space) fputc(' ', fp);
 
@@ -336,11 +375,14 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputc(')', fp);
     *need_space = 1;
   }
-  else if(cell->type == QZ_CT_HASH)
+  else if(qz_type(cell) == QZ_CT_HASH)
   {
-    assert(0); /* implement for debugging purposes? */
+    /* implement for debugging purposes? */
+    if(*need_space) fputc(' ', fp);
+    fprintf(fp, "[hash %p]", (void*)cell);
+    *need_space = 1;
   }
-  else if(cell->type == QZ_CT_REAL)
+  else if(qz_type(cell) == QZ_CT_REAL)
   {
     // TODO make this readable by qz_read()
     if(*need_space) fputc(' ', fp);
@@ -376,13 +418,18 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
   {
     if(*need_space) fputc(' ', fp);
 
-    // translate identifier to string
-    obj = qz_get_hash(st->sym_name, obj);
+    if(st) {
+      // translate identifier to string
+      obj = qz_get_hash(st->sym_name, obj);
 
-    // TODO make this readable by qz_read()
-    assert(qz_is_string(obj));
-    qz_cell_t* cell = qz_to_cell(obj);
-    fprintf(fp, "%.*s", (int)cell->value.array.size, QZ_CELL_DATA(cell, char));
+      // TODO make this readable by qz_read()
+      assert(qz_is_string(obj));
+      qz_cell_t* cell = qz_to_cell(obj);
+      fprintf(fp, "%.*s", (int)cell->value.array.size, QZ_CELL_DATA(cell, char));
+    }
+    else {
+      fprintf(fp, "[sym %lx]", qz_to_sym(obj));
+    }
 
     *need_space = 1;
   }
@@ -425,53 +472,54 @@ void qz_write(qz_state_t* st, qz_obj_t o, int depth, FILE* fp)
   inner_write(st, o, depth, fp, &need_space);
 }
 
-void qz_ref(qz_obj_t obj)
+qz_obj_t qz_ref(qz_obj_t obj)
 {
-  if(!qz_is_cell(obj))
-    return;
-
-  qz_cell_t* cell = qz_to_cell(obj);
-  if(!cell)
-    return;
-
-  cell->refcount++;
+  if(qz_is_cell(obj)) {
+    qz_cell_t* cell = qz_to_cell(obj);
+    if(cell) qz_set_refcount(cell, qz_refcount(cell) + 1);
+  }
+  return obj;
 }
 
-void qz_unref(qz_obj_t obj)
+qz_obj_t qz_unref(qz_obj_t obj)
 {
   if(!qz_is_cell(obj))
-    return;
+    return obj;
 
   qz_cell_t* cell = qz_to_cell(obj);
   if(!cell)
-    return;
+    return obj;
 
-  if(--cell->refcount)
-    return;
+  size_t refcount = qz_refcount(cell);
+  refcount--;
+  qz_set_refcount(cell, refcount);
 
-  if(cell->type == QZ_CT_PAIR || cell->type == QZ_CT_FUN) {
+  if(refcount)
+    return obj;
+
+  if(qz_type(cell) == QZ_CT_PAIR || qz_type(cell) == QZ_CT_FUN) {
     qz_unref(cell->value.pair.first);
     qz_unref(cell->value.pair.rest);
   }
-  else if(cell->type == QZ_CT_STRING) {
+  else if(qz_type(cell) == QZ_CT_STRING) {
     /* nothing to do */
   }
-  else if(cell->type == QZ_CT_VECTOR) {
+  else if(qz_type(cell) == QZ_CT_VECTOR) {
     qz_obj_t* data = QZ_CELL_DATA(cell, qz_obj_t);
     for(size_t i = 0; i < cell->value.array.size; i++)
       qz_unref(data[i]);
   }
-  else if(cell->type == QZ_CT_BYTEVECTOR) {
+  else if(qz_type(cell) == QZ_CT_BYTEVECTOR) {
     /* nothing to do */
   }
-  else if(cell->type == QZ_CT_HASH) {
+  else if(qz_type(cell) == QZ_CT_HASH) {
     qz_pair_t* data = QZ_CELL_DATA(cell, qz_pair_t);
     for(size_t i = 0; i < cell->value.array.capacity; i++) {
       qz_unref(data[i].first);
       qz_unref(data[i].rest);
     }
   }
-  else if(cell->type == QZ_CT_REAL) {
+  else if(qz_type(cell) == QZ_CT_REAL) {
     /* nothing to do */
   }
   else {
@@ -479,6 +527,7 @@ void qz_unref(qz_obj_t obj)
   }
 
   free(cell); /* I never liked that game */
+  return QZ_NIL;
 }
 
 /* performs a bitwise comparison of two arrays
@@ -512,22 +561,25 @@ int qz_equal(qz_obj_t a, qz_obj_t b)
   qz_cell_t* a_cell = qz_to_cell(a);
   qz_cell_t* b_cell = qz_to_cell(b);
 
+  qz_cell_type_t a_type = qz_type(a_cell);
+  qz_cell_type_t b_type = qz_type(b_cell);
+
   /* different cell types? not equal */
-  if(a_cell->type != b_cell->type)
+  if(a_type != b_type)
     return 0;
 
-  if(a_cell->type == QZ_CT_PAIR || a_cell->type == QZ_CT_FUN)
+  if(a_type == QZ_CT_PAIR || a_type == QZ_CT_FUN)
   {
     /* recusively compare pairs */
     return qz_equal(a_cell->value.pair.first, b_cell->value.pair.first)
       && qz_equal(b_cell->value.pair.rest, b_cell->value.pair.rest);
   }
-  else if(a_cell->type == QZ_CT_STRING)
+  else if(a_type == QZ_CT_STRING)
   {
     /* bitwise compare strings */
     return compare_array(a_cell, b_cell, sizeof(char));
   }
-  else if(a_cell->type == QZ_CT_VECTOR)
+  else if(a_type == QZ_CT_VECTOR)
   {
     /* recursively compare vectors */
     qz_array_t* a_vec = &a_cell->value.array;
@@ -543,17 +595,17 @@ int qz_equal(qz_obj_t a, qz_obj_t b)
 
     return 1;
   }
-  else if(a_cell->type == QZ_CT_BYTEVECTOR)
+  else if(a_type == QZ_CT_BYTEVECTOR)
   {
     /* bitwise compare strings */
     return compare_array(a_cell, b_cell, sizeof(uint8_t));
   }
-  else if(a_cell->type == QZ_CT_REAL)
+  else if(a_type == QZ_CT_REAL)
   {
     /* straight compare reals */
     return a_cell->value.real == b_cell->value.real;
   }
-  else if(a_cell->type == QZ_CT_HASH)
+  else if(a_type == QZ_CT_HASH)
   {
     assert(0); /* NYI */
   }

@@ -25,3 +25,12 @@ x
 --- expected
 "foo"
 
+=== Lambda
+Creates a cyclic reference to the environment
+--- SKIP
+--- input
+(define x (lambda () (write "bar")))
+(x) (x) (x)
+--- expected
+"bar""bar""bar"
+

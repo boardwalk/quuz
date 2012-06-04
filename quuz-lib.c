@@ -1,10 +1,11 @@
 #include "quuz.h"
+#include <stdlib.h>
 
 #define ALIGNED __attribute__ ((aligned (8)))
 
 static void set_toplevel(qz_state_t* st, const char* name, qz_cfun_t cfun)
 {
-  qz_set_hash(qz_list_tail(st->env), qz_make_sym(st, qz_make_string(name)), qz_from_cfun(cfun));
+  qz_set_hash(qz_list_head_ptr(qz_list_head(st->env)), qz_make_sym(st, qz_make_string(name)), qz_from_cfun(cfun));
 }
 
 static ALIGNED qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
@@ -22,7 +23,7 @@ static ALIGNED qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
     }
 
     qz_obj_t value = qz_eval(st, qz_to_pair(pair->rest)->first);
-    qz_set_hash(qz_list_head(st->env), pair->first, value);
+    qz_set_hash(qz_list_head_ptr(qz_list_head(st->env)), pair->first, value);
   }
   else if(qz_is_pair(pair->first))
   {
@@ -52,10 +53,22 @@ static ALIGNED qz_obj_t qz_scm_write(qz_state_t* st, qz_obj_t args)
   return QZ_NIL;
 }
 
+static ALIGNED qz_obj_t qz_scm_lambda(qz_state_t* st, qz_obj_t args)
+{
+  // (lambda <formals> <body>)
+  qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
+
+  cell->value.pair.first = qz_ref(qz_list_head(st->env));
+  cell->value.pair.rest = qz_ref(args);
+
+  return qz_from_cell(cell);
+}
+
 void qz_init_lib(qz_state_t* st)
 {
   set_toplevel(st, "define", qz_scm_define);
   set_toplevel(st, "quote", qz_scm_quote);
   set_toplevel(st, "write", qz_scm_write);
+  set_toplevel(st, "lambda", qz_scm_lambda);
 }
 

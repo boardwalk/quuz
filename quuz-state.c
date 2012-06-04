@@ -6,7 +6,7 @@ void qz_init_lib(qz_state_t*); /* quuz-lib.c */
 /* lookup the value of an identifier in the current environment */
 static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t iden)
 {
-  qz_pair_t* scope = qz_to_pair(st->env);
+  qz_pair_t* scope = qz_to_pair(qz_list_head(st->env));
 
   for(;;) {
     qz_obj_t value = qz_get_hash(scope->first, iden);
@@ -25,7 +25,7 @@ static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t iden)
 qz_state_t* qz_alloc()
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));
-  st->env = qz_make_pair(qz_make_hash(), QZ_NIL);
+  st->env = qz_make_pair(qz_make_pair(qz_make_hash(), QZ_NIL), QZ_NIL);
   st->name_sym = qz_make_hash();
   st->sym_name = qz_make_hash();
   st->next_sym = 0;
@@ -51,26 +51,54 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   return qz_eval(st, obj);
 }
 
+qz_obj_t qz_first(qz_obj_t obj) {
+  return qz_to_cell(obj)->value.pair.first;
+}
+
+qz_obj_t qz_rest(qz_obj_t obj) {
+  return qz_to_cell(obj)->value.pair.rest;
+}
+
 /* evaluate an object */
 qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 {
   if(qz_is_pair(obj))
   {
-    qz_pair_t* pair = qz_to_pair(obj);
-
-    if(!qz_is_sym(pair->first))
+    qz_obj_t sym = qz_first(obj);
+    if(!qz_is_sym(sym))
       return qz_error(st, "list does not start with an symbol", obj);
 
-    qz_obj_t value = qz_lookup(st, pair->first);
-
+    qz_obj_t value = qz_lookup(st, sym);
     if(qz_is_nil(value))
       return qz_error(st, "unbound variable", obj);
 
-    if(!qz_is_cfun(value))
-      return qz_error(st, "uncallable value", obj);
+    if(qz_is_fun(value))
+    {
+      qz_obj_t env = qz_first(value);
+      qz_obj_t formals = qz_first(qz_rest(value));
+      qz_obj_t body = qz_first(qz_rest(qz_rest(value)));
 
-    qz_cfun_t cfun = qz_to_cfun(value);
-    return cfun(st, pair->rest);
+      /* push environment */
+      qz_obj_t old_env = st->env;
+      st->env = qz_make_pair(qz_ref(env), qz_ref(st->env));
+
+      /* TODO bind arguments */
+
+      /* execute function */
+      qz_obj_t result = qz_eval(st, body);
+
+      /* pop environment */
+      qz_unref(st->env);
+      st->env = old_env;
+
+      return result;
+    }
+    else if(qz_is_cfun(value))
+    {
+      return qz_to_cfun(value)(st, qz_rest(obj));
+    }
+
+    return qz_error(st, "uncallable value", obj);
   }
 
   if(qz_is_sym(obj))
@@ -80,12 +108,10 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     if(qz_is_nil(value))
       return qz_error(st, "unbound variable", obj);
 
-    qz_ref(value);
-    return value;
+    return qz_ref(value);
   }
 
-  qz_ref(obj);
-  return obj;
+  return qz_ref(obj);
 }
 
 /* throw an error. doesn't return */

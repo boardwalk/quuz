@@ -19,10 +19,8 @@ static int g_dotted_datum = 0;
 
 static qz_obj_t make_array(qz_cell_type_t type, size_t elem_size)
 {
-  qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + INITIAL_CAPACITY*elem_size);
+  qz_cell_t* cell = qz_make_cell(type, INITIAL_CAPACITY*elem_size);
 
-  cell->type = type;
-  cell->refcount = 1;
   cell->value.array.size = 0;
   cell->value.array.capacity = INITIAL_CAPACITY;
 
@@ -33,20 +31,23 @@ static qz_obj_t make_array(qz_cell_type_t type, size_t elem_size)
 static qz_cell_t* grow_array(qz_cell_t* cell, size_t elem_size)
 {
   /* if someone else has a reference to this array, you're gonna have a bad time */
-  assert(cell->refcount == 1);
+  assert(qz_refcount(cell) == 1);
 
   /* double capacity */
-  size_t capacity = cell->value.array.capacity * 2;
+  size_t new_capacity = cell->value.array.capacity * 2;
 
   /* make copy of array */
-  qz_cell_t* new_cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + capacity*elem_size);
+  qz_cell_t* new_cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + new_capacity*elem_size);
   assert(((size_t)new_cell & 7) == 0);
 
-  new_cell->type = cell->type;
-  new_cell->refcount = cell->refcount;
-  new_cell->value.array.size = cell->value.array.size;
-  new_cell->value.array.capacity = cell->value.array.capacity;
+  /* copy info */
+  new_cell->info = cell->info;
 
+  /* init array */
+  new_cell->value.array.size = cell->value.array.size;
+  new_cell->value.array.capacity = new_capacity;
+
+  /* copy data */
   memcpy(QZ_CELL_DATA(new_cell, char), QZ_CELL_DATA(cell, char), cell->value.array.size*elem_size);
 
   /* cleanup */
@@ -59,7 +60,7 @@ static void concat_string(char c)
 {
   //printf("concat_string(%c)\n", c);
 
-  qz_obj_t* obj = qz_vector_tail(g_stack);
+  qz_obj_t* obj = qz_vector_tail_ptr(g_stack);
   qz_cell_t* cell = qz_to_cell(*obj);
 
   /* resize if necessary */
@@ -76,7 +77,7 @@ static void concat_bytevector(int b)
 {
   //printf("concat_bytevector(%d)\n", b);
 
-  qz_obj_t* obj = qz_vector_tail(g_stack);
+  qz_obj_t* obj = qz_vector_tail_ptr(g_stack);
   qz_cell_t* cell = qz_to_cell(*obj);
 
   /* resize if necessary */
@@ -91,7 +92,7 @@ static void concat_bytevector(int b)
 
 static void append(qz_obj_t value_obj)
 {
-  qz_obj_t* obj = qz_vector_tail(g_stack);
+  qz_obj_t* obj = qz_vector_tail_ptr(g_stack);
 
   //printf("append(%lu)\n", value_obj.value);
   //printf("  stack obj: "); qz_write(*obj, -1, stdout); fputc('\n', stdout);
@@ -118,12 +119,7 @@ static void append(qz_obj_t value_obj)
         }
         else {
           /* wrap in another cell and append */
-          qz_cell_t* rest_cell = (qz_cell_t*)malloc(sizeof(qz_cell_t));
-          rest_cell->type = QZ_CT_PAIR;
-          rest_cell->refcount = 1;
-          rest_cell->value.pair.first = value_obj;
-          rest_cell->value.pair.rest = QZ_NIL;
-          pair->rest = qz_from_cell(rest_cell);
+          pair->rest = qz_make_pair(value_obj, QZ_NIL);
         }
         break;
       }
@@ -202,13 +198,7 @@ static void push_pair()
 {
   //printf("push_pair()\n");
 
-  qz_cell_t* cell = malloc(sizeof(qz_cell_t));
-  cell->type = QZ_CT_PAIR;
-  cell->refcount = 1;
-  cell->value.pair.first = QZ_NIL;
-  cell->value.pair.rest = QZ_NIL;
-
-  push(qz_from_cell(cell));
+  push(qz_make_pair(QZ_NIL, QZ_NIL));
 }
 
 /* push a vector onto the stack */
@@ -290,8 +280,7 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp)
   yyparse();
 
   /* grab result */
-  qz_obj_t result = *qz_list_head(root);
-  qz_ref(result);
+  qz_obj_t result = qz_ref(qz_list_head(root));
 
   /* cleanup */
   qz_unref(g_stack);

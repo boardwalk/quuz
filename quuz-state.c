@@ -9,7 +9,7 @@ static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t iden)
   qz_pair_t* scope = qz_to_pair(qz_list_head(st->env));
 
   for(;;) {
-    qz_obj_t value = qz_get_hash(scope->first, iden);
+    qz_obj_t value = qz_get_hash(st, scope->first, iden);
 
     if(!qz_is_nil(value))
       return value;
@@ -29,6 +29,7 @@ qz_state_t* qz_alloc()
   st->name_sym = qz_make_hash();
   st->sym_name = qz_make_hash();
   st->next_sym = 0;
+  st->root_buffer_size = 0;
   qz_init_lib(st);
   return st;
 }
@@ -36,9 +37,9 @@ qz_state_t* qz_alloc()
 /* free a state */
 void qz_free(qz_state_t* st)
 {
-  qz_unref(st->env);
-  qz_unref(st->name_sym);
-  qz_unref(st->sym_name);
+  qz_unref(st, st->env);
+  qz_unref(st, st->name_sym);
+  qz_unref(st, st->sym_name);
   free(st);
 }
 
@@ -80,7 +81,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 
       /* push environment */
       qz_obj_t old_env = st->env;
-      st->env = qz_make_pair(qz_ref(env), qz_ref(st->env));
+      st->env = qz_make_pair(qz_ref(st, env), qz_ref(st, st->env));
 
       /* TODO bind arguments */
 
@@ -88,7 +89,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
       qz_obj_t result = qz_eval(st, body);
 
       /* pop environment */
-      qz_unref(st->env);
+      qz_unref(st, st->env);
       st->env = old_env;
 
       return result;
@@ -108,10 +109,10 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     if(qz_is_nil(value))
       return qz_error(st, "unbound variable", obj);
 
-    return qz_ref(value);
+    return qz_ref(st, value);
   }
 
-  return qz_ref(obj);
+  return qz_ref(st, obj);
 }
 
 /* throw an error. doesn't return */

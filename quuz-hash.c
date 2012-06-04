@@ -120,7 +120,7 @@ qz_obj_t qz_make_hash()
 
 /* retrieve a value from a hash object given a key
  * returns QZ_NIL if not found */
-qz_obj_t qz_get_hash(qz_obj_t obj, qz_obj_t key)
+qz_obj_t qz_get_hash(qz_state_t* st, qz_obj_t obj, qz_obj_t key)
 {
   return get_hash(qz_to_cell(obj), key)->rest;
 }
@@ -128,7 +128,7 @@ qz_obj_t qz_get_hash(qz_obj_t obj, qz_obj_t key)
 /* set a value into a hash object given a key
  * steals a reference from both key and value
  * obj may be rewritten if reallocated */
-void qz_set_hash(qz_obj_t* obj, qz_obj_t key, qz_obj_t value)
+void qz_set_hash(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value)
 {
   qz_cell_t* cell = qz_to_cell(*obj);
   qz_pair_t* pair = get_hash(cell, key);
@@ -136,9 +136,9 @@ void qz_set_hash(qz_obj_t* obj, qz_obj_t key, qz_obj_t value)
   if(qz_is_nil(pair->first))
     cell->value.array.size++;
 
-  qz_unref(pair->first);
+  qz_unref(st, pair->first);
   pair->first = key;
-  qz_unref(pair->rest);
+  qz_unref(st, pair->rest);
   pair->rest = value;
 
   if(cell->value.array.size * 10 > cell->value.array.capacity * 7)

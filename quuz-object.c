@@ -202,16 +202,16 @@ qz_obj_t qz_make_pair(qz_obj_t first, qz_obj_t rest)
  * name is unrefed */
 qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name)
 {
-  qz_obj_t sym = qz_get_hash(st->name_sym, name);
+  qz_obj_t sym = qz_get_hash(st, st->name_sym, name);
 
   if(qz_is_nil(sym)) {
     sym = (qz_obj_t) { (st->next_sym++ << 5) | QZ_PT_SYM };
-    qz_ref(name); /* (1) +1 -2 */
-    qz_set_hash(&st->name_sym, name, sym);
-    qz_set_hash(&st->sym_name, sym, name);
+    qz_ref(st, name); /* (1) +1 -2 */
+    qz_set_hash(st, &st->name_sym, name, sym);
+    qz_set_hash(st, &st->sym_name, sym, name);
   }
   else {
-    qz_unref(name); /* (1) -1 */
+    qz_unref(st, name); /* (1) -1 */
   }
 
   return sym;
@@ -254,64 +254,6 @@ qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj)
 
 qz_obj_t qz_vector_head(qz_obj_t obj) { return *qz_vector_head_ptr(obj); }
 qz_obj_t qz_vector_tail(qz_obj_t obj) { return *qz_vector_tail_ptr(obj); }
-
-qz_obj_t qz_ref(qz_obj_t obj)
-{
-  if(qz_is_cell(obj)) {
-    qz_cell_t* cell = qz_to_cell(obj);
-    if(cell) qz_set_refcount(cell, qz_refcount(cell) + 1);
-  }
-  return obj;
-}
-
-qz_obj_t qz_unref(qz_obj_t obj)
-{
-  if(!qz_is_cell(obj))
-    return obj;
-
-  qz_cell_t* cell = qz_to_cell(obj);
-  if(!cell)
-    return obj;
-
-  size_t refcount = qz_refcount(cell);
-  refcount--;
-  qz_set_refcount(cell, refcount);
-
-  if(refcount)
-    return obj;
-
-  if(qz_type(cell) == QZ_CT_PAIR || qz_type(cell) == QZ_CT_FUN) {
-    qz_unref(cell->value.pair.first);
-    qz_unref(cell->value.pair.rest);
-  }
-  else if(qz_type(cell) == QZ_CT_STRING) {
-    /* nothing to do */
-  }
-  else if(qz_type(cell) == QZ_CT_VECTOR) {
-    qz_obj_t* data = QZ_CELL_DATA(cell, qz_obj_t);
-    for(size_t i = 0; i < cell->value.array.size; i++)
-      qz_unref(data[i]);
-  }
-  else if(qz_type(cell) == QZ_CT_BYTEVECTOR) {
-    /* nothing to do */
-  }
-  else if(qz_type(cell) == QZ_CT_HASH) {
-    qz_pair_t* data = QZ_CELL_DATA(cell, qz_pair_t);
-    for(size_t i = 0; i < cell->value.array.capacity; i++) {
-      qz_unref(data[i].first);
-      qz_unref(data[i].rest);
-    }
-  }
-  else if(qz_type(cell) == QZ_CT_REAL) {
-    /* nothing to do */
-  }
-  else {
-    assert(0); /* unknown cell type */
-  }
-
-  free(cell); /* I never liked that game */
-  return QZ_NIL;
-}
 
 /* performs a bitwise comparison of two arrays
  * returns nonzero if equal */

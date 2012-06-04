@@ -5,7 +5,7 @@
 
 static void set_toplevel(qz_state_t* st, const char* name, qz_cfun_t cfun)
 {
-  qz_set_hash(qz_list_head_ptr(qz_list_head(st->env)), qz_make_sym(st, qz_make_string(name)), qz_from_cfun(cfun));
+  qz_set_hash(st, qz_list_head_ptr(qz_list_head(st->env)), qz_make_sym(st, qz_make_string(name)), qz_from_cfun(cfun));
 }
 
 static ALIGNED qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
@@ -23,7 +23,7 @@ static ALIGNED qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
     }
 
     qz_obj_t value = qz_eval(st, qz_to_pair(pair->rest)->first);
-    qz_set_hash(qz_list_head_ptr(qz_list_head(st->env)), pair->first, value);
+    qz_set_hash(st, qz_list_head_ptr(qz_list_head(st->env)), pair->first, value);
   }
   else if(qz_is_pair(pair->first))
   {
@@ -49,7 +49,7 @@ static ALIGNED qz_obj_t qz_scm_write(qz_state_t* st, qz_obj_t args)
   // (write obj port)
   qz_obj_t obj = qz_eval(st, qz_to_pair(args)->first);
   qz_write(st, obj, -1, stdout);
-  qz_unref(obj);
+  qz_unref(st, obj);
   return QZ_NIL;
 }
 
@@ -58,8 +58,8 @@ static ALIGNED qz_obj_t qz_scm_lambda(qz_state_t* st, qz_obj_t args)
   // (lambda <formals> <body>)
   qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
 
-  cell->value.pair.first = qz_ref(qz_list_head(st->env));
-  cell->value.pair.rest = qz_ref(args);
+  cell->value.pair.first = qz_ref(st, qz_list_head(st->env));
+  cell->value.pair.rest = qz_ref(st, args);
 
   return qz_from_cell(cell);
 }

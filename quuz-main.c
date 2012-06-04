@@ -48,10 +48,10 @@ int main(int argc, char* argv[])
     }
     else if(mode == EXEC)
     {
-      qz_unref(qz_peval(st, obj));
+      qz_unref(st, qz_peval(st, obj));
     }
 
-    qz_unref(obj);
+    qz_unref(st, obj);
   }
 
   qz_free(st);

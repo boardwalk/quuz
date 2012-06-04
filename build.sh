@@ -6,6 +6,7 @@ flags="-g"
 gcc -D_POSIX_C_SOURCE=200112L -Wall -pedantic -std=c99 $flags -o quuz \
   quuz-main.c \
   quuz-object.c \
+  quuz-collector.c \
   quuz-read.c \
   quuz-write.c \
   quuz-hash.c \

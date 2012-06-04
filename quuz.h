@@ -6,6 +6,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define QZ_ROOT_BUFFER_CAPACITY 16
+#define QZ_CELL_DATA(c, t) ((t*)((char*)(c) + sizeof(qz_cell_t)))
+
 /*   000 even fixnum (value is << 2)
  *   001 short immediate (see below)
  *   010 cell
@@ -14,8 +17,6 @@
  * 00001 symbol (value is << 5)
  * 01001 boolean (value is << 5)
  * 10001 character (value is << 5) */
-
-#define QZ_CELL_DATA(c, t) ((t*)((char*)(c) + sizeof(qz_cell_t)))
 
 typedef enum {
   QZ_PT_EVEN_FIXNUM = 0,
@@ -65,6 +66,9 @@ typedef struct qz_state {
   qz_obj_t sym_name;
   /* next number to assign to a symbol */
   size_t next_sym;
+  /* array of possible roots */
+  size_t root_buffer_size;
+  qz_obj_t root_buffer[QZ_ROOT_BUFFER_CAPACITY];
   /* state to restore when an error occurs */
   jmp_buf error_handler;
 } qz_state_t;
@@ -167,14 +171,12 @@ qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj);
 qz_obj_t qz_vector_head(qz_obj_t obj);
 qz_obj_t qz_vector_tail(qz_obj_t obj);
 
-qz_obj_t qz_ref(qz_obj_t obj);
-qz_obj_t qz_unref(qz_obj_t obj);
 int qz_equal(qz_obj_t a, qz_obj_t b);
 
 /* quuz-hash.c */
 qz_obj_t qz_make_hash();
-qz_obj_t qz_get_hash(qz_obj_t obj, qz_obj_t key);
-void qz_set_hash(qz_obj_t* obj, qz_obj_t key, qz_obj_t value);
+qz_obj_t qz_get_hash(qz_state_t* st, qz_obj_t obj, qz_obj_t key);
+void qz_set_hash(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value);
 
 /* quuz-state.c */
 qz_state_t* qz_alloc();
@@ -188,5 +190,9 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp);
 
 /* quuz-write.c */
 void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);
+
+/* quuz-collector.c */
+qz_obj_t qz_ref(qz_state_t* st, qz_obj_t obj);
+void qz_unref(qz_state_t* st, qz_obj_t obj);
 
 #endif /* QUUZ_QUUZ_H */

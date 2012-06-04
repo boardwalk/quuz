@@ -166,7 +166,7 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
 
     if(st) {
       // translate identifier to string
-      obj = qz_get_hash(st->sym_name, obj);
+      obj = qz_get_hash(st, st->sym_name, obj);
 
       // TODO make this readable by qz_read()
       assert(qz_is_string(obj));

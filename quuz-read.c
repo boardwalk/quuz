@@ -280,10 +280,10 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp)
   yyparse();
 
   /* grab result */
-  qz_obj_t result = qz_ref(qz_list_head(root));
+  qz_obj_t result = qz_ref(st, qz_list_head(root));
 
   /* cleanup */
-  qz_unref(g_stack);
+  qz_unref(st, g_stack);
   g_stack = QZ_NIL;
   g_st = NULL;
   g_fp = NULL;

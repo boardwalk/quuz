@@ -2,6 +2,17 @@
 #include <assert.h>
 #include <stdlib.h>
 
+/*void describe(qz_cell_t*);
+
+void logit(const char* fn, qz_cell_t* cell)
+{
+  fprintf(stderr, "%s(", fn);
+  describe(cell);
+  fputs(")\n", stderr);
+}
+
+#define LOGIT logit(__FUNCTION__, cell)*/
+
 /* The algorithm here is an implementation of "Synchronous Cycle Collection" described in
  * http://www.research.ibm.com/people/d/dfb/papers/Bacon01Concurrent.pdf */
 
@@ -44,6 +55,7 @@ static void release(qz_state_t* st, qz_cell_t* cell);
 /* mark_roots related */
 static void decr_and_mark_gray(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   assert(qz_refcount(cell) != 0);
   qz_set_refcount(cell, qz_refcount(cell) - 1);
   mark_gray(st, cell);
@@ -51,6 +63,7 @@ static void decr_and_mark_gray(qz_state_t* st, qz_cell_t* cell)
 
 static void mark_gray(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   if(qz_color(cell) != QZ_CC_GRAY)
   {
     qz_set_color(cell, QZ_CC_GRAY);
@@ -63,8 +76,9 @@ static void mark_roots(qz_state_t* st)
   for(size_t i = 0; i < st->root_buffer_size; /**/)
   {
     qz_cell_t* cell = st->root_buffer[i];
+    /*LOGIT;*/
 
-    if(qz_color(cell) == QZ_CC_PURPLE && qz_refcount(cell) > 0)
+    if(qz_color(cell) == QZ_CC_PURPLE)
     {
       mark_gray(st, cell);
       i++;
@@ -78,7 +92,7 @@ static void mark_roots(qz_state_t* st)
         st->root_buffer[j - 1] = st->root_buffer[j];
       st->root_buffer_size--;
 
-      if(qz_refcount(cell) == 0)
+      if(qz_color(cell) == QZ_CC_BLACK && qz_refcount(cell) == 0)
         free(cell);
     }
   }
@@ -87,6 +101,7 @@ static void mark_roots(qz_state_t* st)
 /* scan_roots related */
 static void incr_and_scan_black(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   qz_set_refcount(cell, qz_refcount(cell) + 1);
   if(qz_color(cell) != QZ_CC_BLACK)
     scan_black(st, cell);
@@ -94,12 +109,14 @@ static void incr_and_scan_black(qz_state_t* st, qz_cell_t* cell)
 
 static void scan_black(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   qz_set_color(cell, QZ_CC_BLACK);
   all_children(st, cell, incr_and_scan_black);
 }
 
 static void scan(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   if(qz_color(cell) == QZ_CC_GRAY)
   {
     if(qz_refcount(cell) > 0)
@@ -123,6 +140,7 @@ static void scan_roots(qz_state_t* st)
 /* collect_roots related */
 static void collect_white(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   if(qz_color(cell) == QZ_CC_WHITE && !qz_buffered(cell))
   {
     qz_set_color(cell, QZ_CC_BLACK);
@@ -155,6 +173,7 @@ static void collect_roots(qz_state_t* st)
 
 static void possible_root(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   if(qz_color(cell) != QZ_CC_PURPLE)
   {
     qz_set_color(cell, QZ_CC_PURPLE);
@@ -172,12 +191,14 @@ static void possible_root(qz_state_t* st, qz_cell_t* cell)
 
 static void increment(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   qz_set_refcount(cell, qz_refcount(cell) + 1);
   qz_set_color(cell, QZ_CC_BLACK);
 }
 
 static void decrement(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   assert(qz_refcount(cell) != 0);
   size_t refcount = qz_refcount(cell) - 1;
   qz_set_refcount(cell, refcount);
@@ -189,6 +210,7 @@ static void decrement(qz_state_t* st, qz_cell_t* cell)
 
 static void release(qz_state_t* st, qz_cell_t* cell)
 {
+  /*LOGIT;*/
   all_children(st, cell, decrement);
   qz_set_color(cell, QZ_CC_BLACK);
   if(!qz_buffered(cell))
@@ -209,8 +231,11 @@ void qz_unref(qz_state_t* st, qz_obj_t obj)
 
 void qz_collect(qz_state_t* st)
 {
+  /*fprintf(stderr, "mark_roots starting...\n");*/
   mark_roots(st);
+  /*fprintf(stderr, "scan roots starting...\n");*/
   scan_roots(st);
+  /*fprintf(stderr, "collect_roots starting...\n");*/
   collect_roots(st);
 }
 

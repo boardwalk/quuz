@@ -2,6 +2,47 @@
 #include <assert.h>
 #include <ctype.h>
 
+/*static const char* type_name(qz_cell_type_t ct) {
+  switch(ct) {
+    case QZ_CT_PAIR:
+      return "pair";
+    case QZ_CT_FUN:
+      return "fun";
+    case QZ_CT_STRING:
+      return "string";
+    case QZ_CT_VECTOR:
+      return "vector";
+    case QZ_CT_BYTEVECTOR:
+      return "bytevector";
+    case QZ_CT_HASH:
+      return "hash";
+    case QZ_CT_REAL:
+      return "real";
+  }
+  return "unknown";
+}
+
+static const char* color_name(qz_cell_color_t cc) {
+  switch(cc) {
+    case QZ_CC_BLACK:
+      return "black";
+    case QZ_CC_GRAY:
+      return "gray";
+    case QZ_CC_WHITE:
+      return "white";
+    case QZ_CC_PURPLE:
+      return "purple";
+  }
+  return "unknown";
+}
+
+void describe(qz_cell_t* cell)
+{
+  fprintf(stderr, "<%p r=%lu t=%s c=%s b=%lu>",
+      (void*)cell, qz_refcount(cell),
+      type_name(qz_type(cell)), color_name(qz_color(cell)), qz_buffered(cell));
+}*/
+
 static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* need_space);
 
 static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* fp, int* need_space)
@@ -12,6 +53,8 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     *need_space = 1;
     return;
   }
+
+  /*describe(cell);*/
 
   if(qz_type(cell) == QZ_CT_PAIR)
   {

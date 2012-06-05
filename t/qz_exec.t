@@ -40,8 +40,6 @@ y
 foo
 
 === Lambda 3
-Valgrind errors
---- SKIP
 --- input
 (define x (lambda () (write "foo")))
 (x)

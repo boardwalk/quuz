@@ -17,30 +17,8 @@ static uint32_t inner_hash(qz_obj_t obj, uint32_t seed)
     qz_cell_t* cell = qz_to_cell(obj);
     qz_cell_type_t type = qz_type(cell);
 
-    if(type == QZ_CT_PAIR || type == QZ_CT_FUN)
-    {
-      seed = inner_hash(cell->value.pair.first, seed);
-      return inner_hash(cell->value.pair.rest, seed);
-    }
-    else if(type == QZ_CT_STRING)
-    {
+    if(type == QZ_CT_STRING)
       return hash_mem(QZ_CELL_DATA(cell, char), cell->value.array.size*sizeof(char), seed);
-    }
-    else if(type == QZ_CT_VECTOR)
-    {
-      for(size_t i = 0; i < cell->value.array.size; i++)
-        seed = inner_hash(QZ_CELL_DATA(cell, qz_obj_t)[i], seed);
-      return seed;
-    }
-    else if(type == QZ_CT_BYTEVECTOR)
-    {
-      return hash_mem(QZ_CELL_DATA(cell, uint8_t), cell->value.array.size*sizeof(uint8_t), seed);
-    }
-    else if(type == QZ_CT_REAL)
-    {
-      double real = cell->value.real;
-      return hash_mem(&real, sizeof(real), seed);
-    }
 
     assert(0); /* can't hash this type */
   }

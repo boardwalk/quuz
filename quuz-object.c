@@ -157,14 +157,7 @@ void qz_set_buffered(qz_cell_t* cell, size_t bu) {
 qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size)
 {
   qz_cell_t* cell = (qz_cell_t*)malloc(sizeof(qz_cell_t) + extra_size);
-
-  memset(cell, 0, sizeof(qz_cell_t));
-
-  qz_set_refcount(cell, 1);
-  qz_set_type(cell, type);
-  qz_set_color(cell, QZ_CC_BLACK);
-  qz_set_buffered(cell, 0);
-
+  cell->info = 1 /*refcount*/ | ((size_t)type << REFCOUNT_BITS);
   return cell;
 }
 

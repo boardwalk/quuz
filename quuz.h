@@ -73,7 +73,7 @@ typedef struct qz_cell {
     qz_array_t array;
     double real;
   } value;
-  /* don't put anything beyond the union. qz_array_t and qz_hash_t are variable in size */
+  /* don't put anything beyond the union. qz_array_t is variable in size */
 } qz_cell_t;
 
 typedef struct qz_state {

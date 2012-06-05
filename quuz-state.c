@@ -28,7 +28,7 @@ qz_state_t* qz_alloc()
   st->env = qz_make_pair(qz_make_pair(qz_make_hash(), QZ_NIL), QZ_NIL);
   st->name_sym = qz_make_hash();
   st->sym_name = qz_make_hash();
-  st->next_sym = 0;
+  st->next_sym = 1;
   st->root_buffer_size = 0;
   qz_init_lib(st);
   return st;
@@ -40,6 +40,7 @@ void qz_free(qz_state_t* st)
   qz_unref(st, st->env);
   qz_unref(st, st->name_sym);
   qz_unref(st, st->sym_name);
+  qz_collect(st);
   free(st);
 }
 

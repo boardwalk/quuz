@@ -26,11 +26,25 @@ x
 "foo"
 
 === Lambda
-Creates a cyclic reference to the environment
+--- input
+(define x (lambda () 'y))
+(write (x))
+--- expected
+y
+
+=== Lambda 2
+--- input
+(define x (lambda () (write 'foo)))
+(x)
+--- expected
+foo
+
+=== Lambda 3
+Valgrind errors
 --- SKIP
 --- input
-(define x (lambda () (write "bar")))
-(x) (x) (x)
+(define x (lambda () (write "foo")))
+(x)
 --- expected
-"bar""bar""bar"
+"foo"
 

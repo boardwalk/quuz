@@ -48,9 +48,9 @@ static uint32_t inner_hash(qz_obj_t obj, uint32_t seed)
   return hash_mem(&obj, sizeof(obj), seed);
 }
 
-static uint32_t hash_obj(qz_obj_t o)
+static uint32_t hash_obj(qz_obj_t obj)
 {
-  return inner_hash(o, 0xDEADBEEF);
+  return inner_hash(obj, 0xDEADBEEF);
 }
 
 /* create a new hash object with the given capacity */
@@ -115,7 +115,7 @@ static void realloc_hash(qz_obj_t* obj)
 /* create a new hash object */
 qz_obj_t qz_make_hash()
 {
-  return qz_from_cell(make_hash(16));
+  return qz_from_cell(make_hash(8));
 }
 
 /* retrieve a value from a hash object given a key

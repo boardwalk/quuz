@@ -4,38 +4,9 @@
 #include <string.h>
 #include <limits.h>
 
-#define QZ_INFO_BITS (sizeof(size_t)*CHAR_BIT)
-
 qz_obj_t const QZ_NIL = { (size_t)NULL | QZ_PT_CELL };
 qz_obj_t const QZ_TRUE = { (1 << 4) | QZ_PT_BOOL };
 qz_obj_t const QZ_FALSE = { (0 << 4) | QZ_PT_BOOL };
-
-/* cell->info accessors */
-size_t qz_refcount(qz_cell_t* cell) {
-  return cell->info & (~(size_t)0 >> 7);
-}
-qz_cell_type_t qz_type(qz_cell_t* cell) {
-  return (cell->info >> (QZ_INFO_BITS - 7)) & 7;
-}
-qz_cell_color_t qz_color(qz_cell_t* cell) {
-  return (cell->info >> (QZ_INFO_BITS - 4)) & 7;
-}
-size_t qz_buffered(qz_cell_t* cell) {
-  return (cell->info >> (QZ_INFO_BITS - 1)) & 1;
-}
-
-void qz_set_refcount(qz_cell_t* cell, size_t rc) {
-  cell->info = (cell->info & (~(size_t)0 << (QZ_INFO_BITS - 7))) | rc;
-}
-void qz_set_type(qz_cell_t* cell, qz_cell_type_t ct) {
-  cell->info = (cell->info & ~((size_t)7 << (QZ_INFO_BITS - 7))) | ((size_t)ct << (QZ_INFO_BITS - 7));
-}
-void qz_set_color(qz_cell_t* cell, qz_cell_color_t cc) {
-  cell->info = (cell->info & ~((size_t)7 << (QZ_INFO_BITS - 4))) | ((size_t)cc << (QZ_INFO_BITS - 4));
-}
-void qz_set_buffered(qz_cell_t* cell, size_t bu) {
-  cell->info = (cell->info & ~((size_t)1 << (QZ_INFO_BITS - 1))) | (bu << (QZ_INFO_BITS - 1));
-}
 
 /* qz_is_<type> */
 int qz_is_nil(qz_obj_t obj) {
@@ -117,22 +88,6 @@ qz_pair_t* qz_to_pair(qz_obj_t obj) {
   assert(qz_is_pair(obj));
   return &qz_to_cell(obj)->value.pair;
 }
-qz_array_t* qz_to_string(qz_obj_t obj) {
-  assert(qz_is_string(obj));
-  return &qz_to_cell(obj)->value.array;
-}
-qz_array_t* qz_to_vector(qz_obj_t obj) {
-  assert(qz_is_vector(obj));
-  return &qz_to_cell(obj)->value.array;
-}
-qz_array_t* qz_to_bytevector(qz_obj_t obj) {
-  assert(qz_is_bytevector(obj));
-  return &qz_to_cell(obj)->value.array;
-}
-qz_array_t* qz_to_hash(qz_obj_t obj) {
-  assert(qz_is_hash(obj));
-  return &qz_to_cell(obj)->value.array;
-}
 double qz_to_real(qz_obj_t obj) {
   assert(qz_is_real(obj));
   return qz_to_cell(obj)->value.real;
@@ -158,6 +113,45 @@ qz_obj_t qz_from_bool(int b) {
 }
 qz_obj_t qz_from_char(char c) {
   return (qz_obj_t) { (c << 5) | QZ_PT_CHAR };
+}
+
+/* cell->info accessors */
+#define REFCOUNT_BITS (sizeof(size_t)*CHAR_BIT - TYPE_BITS - COLOR_BITS - BUFFERED_BITS)
+#define TYPE_BITS 3
+#define COLOR_BITS 2
+#define BUFFERED_BITS 1
+
+static size_t get_bits(size_t bitfield, size_t pos, size_t len) {
+  size_t mask = ~(size_t)0 >> (sizeof(size_t)*CHAR_BIT - len);
+  return (bitfield >> pos) & mask;
+}
+static size_t set_bits(size_t bitfield, size_t pos, size_t len, size_t value) {
+  size_t mask = ~(size_t)0 >> (sizeof(size_t)*CHAR_BIT - len);
+  return (bitfield & ~(mask << pos)) | (value << pos);
+}
+size_t qz_refcount(qz_cell_t* cell) {
+  return get_bits(cell->info, 0, REFCOUNT_BITS);
+}
+qz_cell_type_t qz_type(qz_cell_t* cell) {
+  return get_bits(cell->info, REFCOUNT_BITS, TYPE_BITS);
+}
+qz_cell_color_t qz_color(qz_cell_t* cell) {
+  return get_bits(cell->info, REFCOUNT_BITS + TYPE_BITS, COLOR_BITS);
+}
+size_t qz_buffered(qz_cell_t* cell) {
+  return get_bits(cell->info, REFCOUNT_BITS + TYPE_BITS + COLOR_BITS, BUFFERED_BITS);
+}
+void qz_set_refcount(qz_cell_t* cell, size_t rc) {
+  cell->info = set_bits(cell->info, 0, REFCOUNT_BITS, rc);
+}
+void qz_set_type(qz_cell_t* cell, qz_cell_type_t ct) {
+  cell->info = set_bits(cell->info, REFCOUNT_BITS, TYPE_BITS, ct);
+}
+void qz_set_color(qz_cell_t* cell, qz_cell_color_t cc) {
+  cell->info = set_bits(cell->info, REFCOUNT_BITS + TYPE_BITS, COLOR_BITS, cc);
+}
+void qz_set_buffered(qz_cell_t* cell, size_t bu) {
+  cell->info = set_bits(cell->info, REFCOUNT_BITS + TYPE_BITS + COLOR_BITS, BUFFERED_BITS, bu);
 }
 
 qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size)

@@ -7,16 +7,20 @@ int main(int argc, char* argv[])
 {
   FILE* fp = stdin;
   enum { UNKNOWN, PARSE, EXEC } mode = UNKNOWN;
+  int debug = 0;
 
   /* parse options */
   int c;
-  while((c = getopt(argc, argv, "pe")) != -1) {
+  while((c = getopt(argc, argv, "ped")) != -1) {
     switch(c) {
       case 'p':
         mode = PARSE;
         break;
       case 'e':
         mode = EXEC;
+        break;
+      case 'd':
+        debug = 1;
         break;
     }
   }
@@ -52,6 +56,24 @@ int main(int argc, char* argv[])
     }
 
     qz_unref(st, obj);
+  }
+
+  if(debug) {
+    fputs("st->env = ", stderr);
+    qz_write(st, st->env, 6, stderr);
+    fputc('\n', stderr);
+
+    fputs("st->name_sym = ", stderr);
+    qz_write(st, st->name_sym, -1, stderr);
+    fputc('\n', stderr);
+
+    fputs("st->sym_name = ", stderr);
+    qz_write(st, st->sym_name, -1, stderr);
+    fputc('\n', stderr);
+
+    fputs("st->root_buffer = \n", stderr);
+    for(size_t i = 0; i < st->root_buffer_size; i++)
+      fprintf(stderr, " %p\n", (void*)st->root_buffer[i]);
   }
 
   qz_free(st);

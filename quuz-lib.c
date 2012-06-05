@@ -5,7 +5,9 @@
 
 static void set_toplevel(qz_state_t* st, const char* name, qz_cfun_t cfun)
 {
-  qz_set_hash(st, qz_list_head_ptr(qz_list_head(st->env)), qz_make_sym(st, qz_make_string(name)), qz_from_cfun(cfun));
+  qz_set_hash(st, qz_list_head_ptr(qz_list_head(st->env)),
+      qz_make_sym(st, qz_make_string(name)),
+      qz_from_cfun(cfun));
 }
 
 static ALIGNED qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)

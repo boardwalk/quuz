@@ -59,8 +59,21 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
   }
   else if(qz_type(cell) == QZ_CT_FUN)
   {
+    /* TODO How are scheme-defined functions supposed to be written? */
+    qz_pair_t* pair = &cell->value.pair;
+
     if(*need_space) fputc(' ', fp);
-    fputs("[fun]", fp); /* TODO How is scheme-defined function supposed to be written? */
+    fputs("[fun", fp);
+    *need_space = 1;
+
+    if(depth) {
+      depth--;
+      inner_write(st, pair->first, depth, fp, need_space);
+      inner_write(st, pair->rest, depth, fp, need_space);
+      depth++;
+    }
+
+    fputc(']', fp);
     *need_space = 1;
   }
   else if(qz_type(cell) == QZ_CT_STRING)
@@ -123,9 +136,45 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
   }
   else if(qz_type(cell) == QZ_CT_HASH)
   {
-    /* implement for debugging purposes? */
     if(*need_space) fputc(' ', fp);
-    fprintf(fp, "[hash %p]", (void*)cell);
+
+    fputc('{', fp);
+    *need_space = 0;
+
+    if(depth) {
+      depth--;
+
+      int first_pair = 1;
+      for(size_t i = 0; i < cell->value.array.capacity; i++)
+      {
+        qz_pair_t* pair = QZ_CELL_DATA(cell, qz_pair_t) + i;
+        if(qz_is_nil(pair->first))
+          continue;
+
+        if(first_pair) {
+          first_pair = 0;
+        }
+        else {
+          fputc(',', fp);
+          *need_space = 1;
+        }
+
+        inner_write(st, pair->first, depth, fp, need_space);
+
+        if(*need_space) fputc(' ', fp);
+        fputc('=', fp);
+        *need_space = 1;
+
+        inner_write(st, pair->rest, depth, fp, need_space);
+      }
+
+      depth++;
+    }
+    else {
+      fputs("...", fp);
+    }
+
+    fputc('}', fp);
     *need_space = 1;
   }
   else if(qz_type(cell) == QZ_CT_REAL)
@@ -164,13 +213,14 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
   {
     if(*need_space) fputc(' ', fp);
 
-    if(st) {
-      // translate identifier to string
-      obj = qz_get_hash(st, st->sym_name, obj);
+    // translate identifier to string
+    qz_obj_t name = QZ_NIL;
+    if(st)
+      name = qz_get_hash(st, st->sym_name, obj);
 
+    if(qz_is_string(name)) {
       // TODO make this readable by qz_read()
-      assert(qz_is_string(obj));
-      qz_cell_t* cell = qz_to_cell(obj);
+      qz_cell_t* cell = qz_to_cell(name);
       fprintf(fp, "%.*s", (int)cell->value.array.size, QZ_CELL_DATA(cell, char));
     }
     else {

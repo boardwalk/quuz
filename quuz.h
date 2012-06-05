@@ -35,7 +35,7 @@ typedef enum {
   QZ_CT_STRING, /* qz_array_t with char elements follows qz_cell_t */
   QZ_CT_VECTOR, /* qz_array_t with qz_obj_t elements */
   QZ_CT_BYTEVECTOR, /* qz_array_t with uint8_t elements */
-  QZ_CT_HASH, /* qz_hash_t with qz_pair_t elements */
+  QZ_CT_HASH, /* qz_array_t with qz_pair_t elements */
   QZ_CT_REAL
   /* 7 values, 3 bits */
 } qz_cell_type_t;
@@ -45,13 +45,36 @@ typedef enum {
   QZ_CC_GRAY, /* possible member of cycle */
   QZ_CC_WHITE, /* member of garbage cycle */
   QZ_CC_PURPLE, /* possible root of cycle */
-  QZ_CC_GREEN, /* acyclic */
-  QZ_CC_RED, /* candidate cycle undergoing sum-computation */
-  QZ_CC_ORANGE /* candidate cycle awaiting epoch boundary */
-  /* 7 values, 3 bits */
+  /* 4 values, 2 bits */
 } qz_cell_color_t;
 
 typedef struct { size_t value; } qz_obj_t;
+
+typedef struct qz_pair {
+  qz_obj_t first;
+  qz_obj_t rest;
+} qz_pair_t;
+
+typedef struct qz_array {
+  size_t size; /* in elements, not bytes */
+  size_t capacity; /* ditto */
+  /* data follows */
+} qz_array_t;
+
+typedef struct qz_cell {
+  // contains four fields, lsb to msb
+  // refcount, sizeof(size_t)*CHAR_BIT - 6 bits
+  // type, 3 bits, qz_cell_type_t
+  // color, 2 bits, qz_cell_color_t
+  // buffered, 1 bit
+  size_t info;
+  union {
+    qz_pair_t pair;
+    qz_array_t array;
+    double real;
+  } value;
+  /* don't put anything beyond the union. qz_array_t and qz_hash_t are variable in size */
+} qz_cell_t;
 
 typedef struct qz_state {
   /* variables bindings
@@ -68,38 +91,12 @@ typedef struct qz_state {
   size_t next_sym;
   /* array of possible roots */
   size_t root_buffer_size;
-  qz_obj_t root_buffer[QZ_ROOT_BUFFER_CAPACITY];
+  qz_cell_t* root_buffer[QZ_ROOT_BUFFER_CAPACITY];
   /* state to restore when an error occurs */
   jmp_buf error_handler;
 } qz_state_t;
 
 typedef qz_obj_t (*qz_cfun_t)(qz_state_t* st, qz_obj_t args);
-
-typedef struct qz_pair {
-  qz_obj_t first;
-  qz_obj_t rest;
-} qz_pair_t;
-
-typedef struct qz_array {
-  size_t size; /* in elements, not bytes */
-  size_t capacity; /* ditto */
-  /* data follows */
-} qz_array_t;
-
-typedef struct qz_cell {
-  // contains four fields, lsb to msb
-  // refcount, sizeof(size_t)*CHAR_BIT - 7 bits
-  // type, 3 bits, qz_cell_type_t
-  // color, 3 bits, qz_cell_color_t
-  // buffered, 1 bit
-  size_t info;
-  union {
-    qz_pair_t pair;
-    qz_array_t array;
-    double real;
-  } value;
-  /* don't put anything beyond the union. qz_array_t and qz_hash_t are variable in size */
-} qz_cell_t;
 
 /* quuz-object.c */
 extern qz_obj_t const QZ_NIL;
@@ -142,10 +139,6 @@ char qz_to_char(qz_obj_t);
 
 qz_pair_t* qz_to_pair(qz_obj_t);
 qz_pair_t* qz_to_fun(qz_obj_t);
-qz_array_t* qz_to_string(qz_obj_t);
-qz_array_t* qz_to_vector(qz_obj_t);
-qz_array_t* qz_to_bytevector(qz_obj_t);
-qz_array_t* qz_to_hash(qz_obj_t);
 double qz_to_real(qz_obj_t);
 
 qz_obj_t qz_from_fixnum(intptr_t);
@@ -194,5 +187,6 @@ void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);
 /* quuz-collector.c */
 qz_obj_t qz_ref(qz_state_t* st, qz_obj_t obj);
 void qz_unref(qz_state_t* st, qz_obj_t obj);
+void qz_collect(qz_state_t* st);
 
 #endif /* QUUZ_QUUZ_H */

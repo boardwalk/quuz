@@ -27,6 +27,8 @@ sub external {
 
 sub with_valgrind {
   my $data = shift;
-  external($data, "valgrind", "--quiet", "--leak-check=full", "--error-exitcode=1", @_);
+  external($data, "valgrind", "--quiet", "--leak-check=full",
+    "--show-reachable=yes", "--error-exitcode=1",
+    "--suppressions=yyparse.supp", @_);
 }
 

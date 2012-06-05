@@ -56,6 +56,9 @@ int main(int argc, char* argv[])
 
   qz_free(st);
 
+  if(fp != stdin)
+    fclose(fp);
+
   return EXIT_SUCCESS;
 }
 

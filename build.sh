@@ -12,6 +12,7 @@ gcc -D_POSIX_C_SOURCE=200112L -Wall -pedantic -std=c99 $flags -o quuz \
   quuz-hash.c \
   MurmurHash3.c \
   quuz-state.c \
-  quuz-lib.c
+  quuz-lib.c \
+  quuz-lib2.c
 
 [ "$1" = release ] && strip -s quuz

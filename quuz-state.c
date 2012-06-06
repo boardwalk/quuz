@@ -25,11 +25,13 @@ static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t iden)
 qz_state_t* qz_alloc()
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));
+  st->root_buffer_size = 0;
   st->env = qz_make_pair(qz_make_pair(qz_make_hash(), QZ_NIL), QZ_NIL);
   st->name_sym = qz_make_hash();
   st->sym_name = qz_make_hash();
   st->next_sym = 1;
-  st->root_buffer_size = 0;
+  st->else_sym = qz_make_sym(st, qz_make_string("else"));
+  st->arrow_sym = qz_make_sym(st, qz_make_string("=>"));
   qz_init_lib(st);
   return st;
 }
@@ -51,14 +53,6 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
     return QZ_NIL;
 
   return qz_eval(st, obj);
-}
-
-qz_obj_t qz_first(qz_obj_t obj) {
-  return qz_to_cell(obj)->value.pair.first;
-}
-
-qz_obj_t qz_rest(qz_obj_t obj) {
-  return qz_to_cell(obj)->value.pair.rest;
 }
 
 /* evaluate an object */

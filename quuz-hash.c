@@ -84,7 +84,7 @@ static void realloc_hash(qz_obj_t* obj)
     *new_pair = *pair;
   }
 
-  // replace old cell with new
+  /* replace old cell with new */
   new_cell->info = cell->info;
   free(cell);
   *obj = qz_from_cell(new_cell);

@@ -9,6 +9,13 @@ qz_obj_t const QZ_TRUE = { (1 << 4) | QZ_PT_BOOL };
 qz_obj_t const QZ_FALSE = { (0 << 4) | QZ_PT_BOOL };
 
 /* qz_is_<type> */
+static int cell_of_type(qz_obj_t obj, qz_cell_type_t type) {
+  if(qz_is_cell(obj)) {
+    qz_cell_t* cell = qz_to_cell(obj);
+    if(cell) return qz_type(cell) == type;
+  }
+  return 0;
+}
 int qz_is_nil(qz_obj_t obj) {
   return obj.value == QZ_NIL.value;
 }
@@ -29,13 +36,6 @@ int qz_is_bool(qz_obj_t obj) {
 }
 int qz_is_char(qz_obj_t obj) {
   return (obj.value & 31) == QZ_PT_CHAR;
-}
-static int cell_of_type(qz_obj_t obj, qz_cell_type_t type) {
-  if(qz_is_cell(obj)) {
-    qz_cell_t* cell = qz_to_cell(obj);
-    if(cell) return qz_type(cell) == type;
-  }
-  return 0;
 }
 int qz_is_pair(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_PAIR);
@@ -86,6 +86,10 @@ char qz_to_char(qz_obj_t obj) {
 }
 qz_pair_t* qz_to_pair(qz_obj_t obj) {
   assert(qz_is_pair(obj));
+  return &qz_to_cell(obj)->value.pair;
+}
+qz_pair_t* qz_to_fun(qz_obj_t obj) {
+  assert(qz_is_fun(obj));
   return &qz_to_cell(obj)->value.pair;
 }
 double qz_to_real(qz_obj_t obj) {
@@ -202,6 +206,14 @@ qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name)
   }
 
   return sym;
+}
+
+qz_obj_t qz_first(qz_obj_t obj) {
+  return qz_to_cell(obj)->value.pair.first;
+}
+
+qz_obj_t qz_rest(qz_obj_t obj) {
+  return qz_to_cell(obj)->value.pair.rest;
 }
 
 qz_obj_t* qz_list_head_ptr(qz_obj_t obj)

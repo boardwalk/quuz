@@ -12,7 +12,7 @@
 /*   000 even fixnum (value is << 2)
  *   001 short immediate (see below)
  *   010 cell
- *   011 cfun
+ *   011 c function
  *   100 odd fixnum (value is << 2)
  * 00001 symbol (value is << 5)
  * 01001 boolean (value is << 5)
@@ -77,6 +77,9 @@ typedef struct qz_cell {
 } qz_cell_t;
 
 typedef struct qz_state {
+  /* array of possible roots */
+  size_t root_buffer_size;
+  qz_cell_t* root_buffer[QZ_ROOT_BUFFER_CAPACITY];
   /* variables bindings
    * a list of a list of hashes
    * the outer list is a stack of environment for currently executing functions
@@ -89,9 +92,10 @@ typedef struct qz_state {
   qz_obj_t sym_name;
   /* next number to assign to a symbol */
   size_t next_sym;
-  /* array of possible roots */
-  size_t root_buffer_size;
-  qz_cell_t* root_buffer[QZ_ROOT_BUFFER_CAPACITY];
+  /* "else" sym, used in "cond" */
+  qz_obj_t else_sym;
+  /* "=>" sym, used in "cond" */
+  qz_obj_t arrow_sym;
   /* state to restore when an error occurs */
   jmp_buf error_handler;
 } qz_state_t;
@@ -103,25 +107,13 @@ extern qz_obj_t const QZ_NIL;
 extern qz_obj_t const QZ_TRUE;
 extern qz_obj_t const QZ_FALSE;
 
-size_t qz_refcount(qz_cell_t* cell);
-qz_cell_type_t qz_type(qz_cell_t* cell);
-qz_cell_color_t qz_color(qz_cell_t* cell);
-size_t qz_buffered(qz_cell_t* cell);
-
-void qz_set_refcount(qz_cell_t* cell, size_t rc);
-void qz_set_type(qz_cell_t* cell, qz_cell_type_t ct);
-void qz_set_color(qz_cell_t* cell, qz_cell_color_t cc);
-void qz_set_buffered(qz_cell_t* cell, size_t bu);
-
-int qz_is_nil(qz_obj_t obj); /* TODO this checks for a null pointer to a cell, not a pair with null pointers (empty list) confusing? */
+int qz_is_nil(qz_obj_t obj);
 int qz_is_fixnum(qz_obj_t obj);
 int qz_is_cell(qz_obj_t obj);
 int qz_is_cfun(qz_obj_t obj);
 int qz_is_sym(qz_obj_t);
 int qz_is_bool(qz_obj_t);
 int qz_is_char(qz_obj_t);
-
-qz_cell_type_t qz_cell_type(qz_cell_t* cell);
 int qz_is_pair(qz_obj_t);
 int qz_is_fun(qz_obj_t);
 int qz_is_string(qz_obj_t);
@@ -136,7 +128,6 @@ qz_cfun_t qz_to_cfun(qz_obj_t);
 size_t qz_to_sym(qz_obj_t);
 int qz_to_bool(qz_obj_t);
 char qz_to_char(qz_obj_t);
-
 qz_pair_t* qz_to_pair(qz_obj_t);
 qz_pair_t* qz_to_fun(qz_obj_t);
 double qz_to_real(qz_obj_t);
@@ -147,10 +138,30 @@ qz_obj_t qz_from_cfun(qz_cfun_t);
 qz_obj_t qz_from_bool(int);
 qz_obj_t qz_from_char(char);
 
+size_t qz_refcount(qz_cell_t* cell);
+qz_cell_type_t qz_type(qz_cell_t* cell);
+qz_cell_color_t qz_color(qz_cell_t* cell);
+size_t qz_buffered(qz_cell_t* cell);
+
+void qz_set_refcount(qz_cell_t* cell, size_t rc);
+void qz_set_type(qz_cell_t* cell, qz_cell_type_t ct);
+void qz_set_color(qz_cell_t* cell, qz_cell_color_t cc);
+void qz_set_buffered(qz_cell_t* cell, size_t bu);
+
 qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size);
 qz_obj_t qz_make_string(const char* str);
 qz_obj_t qz_make_pair(qz_obj_t first, qz_obj_t rest);
 qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name);
+
+/* returns the first member of a pair
+ * qz_is_pair(obj) must be true */
+qz_obj_t qz_first(qz_obj_t obj);
+
+/* returns the rest member of a pair
+ * qz_is_pair(obj) must be true */
+qz_obj_t qz_rest(qz_obj_t obj);
+
+/* */
 
 qz_obj_t* qz_list_head_ptr(qz_obj_t obj);
 qz_obj_t* qz_list_tail_ptr(qz_obj_t obj);

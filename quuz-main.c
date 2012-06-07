@@ -64,6 +64,7 @@ int main(int argc, char* argv[])
       {
         qz_write(st, result, -1, stdout);
         qz_unref(st, result);
+        fputc('\n', stdout);
       }
     }
 

@@ -30,17 +30,17 @@ static qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t var)
 static int qz_eqv(qz_obj_t a, qz_obj_t b)
 {
   /* TODO */
-  return a.value = b.value;
+  return a.value == b.value;
 }
 
 /* r7rs 4.1. Primitive expression types */
 
-QZ_DEF_CFUN(qz_scm_quote) /* 4.1.2. Literal expressions */
+QZ_DEF_CFUN(scm_quote) /* 4.1.2. Literal expressions */
 {
-  return qz_ref(st, qz_first(args));
+  return qz_ref(st, qz_required_arg(st, &args));
 }
 
-QZ_DEF_CFUN(qz_scm_lambda) /* 4.1.4. Procedures */
+QZ_DEF_CFUN(scm_lambda) /* 4.1.4. Procedures */
 {
   qz_obj_t formals = qz_required_arg(st, &args);
   qz_obj_t body = args;
@@ -53,7 +53,7 @@ QZ_DEF_CFUN(qz_scm_lambda) /* 4.1.4. Procedures */
   return qz_from_cell(cell);
 }
 
-QZ_DEF_CFUN(qz_scm_if) /* 4.1.5. Conditionals */
+QZ_DEF_CFUN(scm_if) /* 4.1.5. Conditionals */
 {
   qz_obj_t test = qz_required_arg(st, &args);
   qz_obj_t consequent = qz_required_arg(st, &args);
@@ -74,7 +74,7 @@ QZ_DEF_CFUN(qz_scm_if) /* 4.1.5. Conditionals */
   return qz_eval(st, consequent);
 }
 
-QZ_DEF_CFUN(qz_scm_set_b) /* 4.1.6. Assignments */
+QZ_DEF_CFUN(scm_set_b) /* 4.1.6. Assignments */
 {
   qz_obj_t var = qz_required_arg(st, &args);
   qz_obj_t expr = qz_required_arg(st, &args);
@@ -90,7 +90,7 @@ QZ_DEF_CFUN(qz_scm_set_b) /* 4.1.6. Assignments */
 
 /* r7rs 4.2. Derived expression types */
 
-QZ_DEF_CFUN(qz_scm_cond) /* 4.2.1. Conditions */
+QZ_DEF_CFUN(scm_cond) /* 4.2.1. Conditions */
 {
   qz_obj_t clause;
   qz_obj_t result = QZ_NIL;
@@ -134,7 +134,7 @@ QZ_DEF_CFUN(qz_scm_cond) /* 4.2.1. Conditions */
   }
 }
 
-QZ_DEF_CFUN(qz_scm_case)
+QZ_DEF_CFUN(scm_case)
 {
   qz_obj_t key = qz_eval(st, qz_required_arg(st, &args));
 
@@ -177,7 +177,7 @@ QZ_DEF_CFUN(qz_scm_case)
   qz_obj_t expr = qz_optional_arg(st, &clause);
 
   if(qz_eqv(expr, st->arrow_sym)) {
-    expr = qz_required_arg(st, &clause); /* skip array */
+    expr = qz_required_arg(st, &clause); /* skip arrow */
     return qz_eval(st, expr); /* only one expression allowed */
   }
 
@@ -194,7 +194,7 @@ QZ_DEF_CFUN(qz_scm_case)
   }
 }
 
-QZ_DEF_CFUN(qz_scm_and)
+QZ_DEF_CFUN(scm_and)
 {
   qz_obj_t result = QZ_TRUE;
 
@@ -213,7 +213,7 @@ QZ_DEF_CFUN(qz_scm_and)
   }
 }
 
-QZ_DEF_CFUN(qz_scm_or)
+QZ_DEF_CFUN(scm_or)
 {
   /* eval tests */
   for(;;) {
@@ -229,7 +229,7 @@ QZ_DEF_CFUN(qz_scm_or)
   }
 }
 
-QZ_DEF_CFUN(qz_scm_when)
+QZ_DEF_CFUN(scm_when)
 {
   qz_obj_t test = qz_required_arg(st, &args);
   qz_obj_t result = qz_eval(st, test);
@@ -250,7 +250,7 @@ QZ_DEF_CFUN(qz_scm_when)
   }
 }
 
-QZ_DEF_CFUN(qz_scm_unless)
+QZ_DEF_CFUN(scm_unless)
 {
   qz_obj_t test = qz_required_arg(st, &args);
   qz_obj_t result = qz_eval(st, test);
@@ -270,4 +270,18 @@ QZ_DEF_CFUN(qz_scm_unless)
     qz_unref(st, qz_eval(st, expr));
   }
 }
+
+const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
+  {scm_quote, "quote"},
+  {scm_lambda, "lambda"},
+  {scm_if, "if"},
+  {scm_set_b, "set!"},
+  {scm_cond, "cond"},
+  {scm_case, "case"},
+  {scm_and, "and"},
+  {scm_or, "or"},
+  {scm_when, "when"},
+  {scm_unless, "unless"},
+  {NULL, NULL}
+};
 

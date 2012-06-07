@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 void qz_init_lib(qz_state_t*); /* quuz-lib.c */
+extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[]; /* quuz-lib2.c */
 
 /* lookup the value of an identifier in the current environment */
 static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t iden)
@@ -26,21 +27,35 @@ qz_state_t* qz_alloc()
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));
   st->root_buffer_size = 0;
-  st->env = qz_make_pair(qz_make_pair(qz_make_hash(), QZ_NIL), QZ_NIL);
+  qz_obj_t toplevel = qz_make_hash();
+  st->env = qz_make_pair(qz_make_pair(toplevel, QZ_NIL), QZ_NIL);
+  /*fprintf(stderr, "toplevel = %p\n", (void*)qz_to_cell(toplevel));*/
   st->name_sym = qz_make_hash();
+  /*fprintf(stderr, "name_sym = %p\n", (void*)qz_to_cell(st->name_sym));*/
   st->sym_name = qz_make_hash();
+  /*fprintf(stderr, "sym_name = %p\n", (void*)qz_to_cell(st->sym_name));*/
   st->next_sym = 1;
   st->else_sym = qz_make_sym(st, qz_make_string("else"));
   st->arrow_sym = qz_make_sym(st, qz_make_string("=>"));
+
+  for(const qz_named_cfun_t* ncf = QZ_LIB_FUNCTIONS; ncf->cfun; ncf++)
+  {
+    qz_set_hash(st, qz_list_head_ptr(qz_list_head(st->env)),
+        qz_make_sym(st, qz_make_string(ncf->name)), qz_from_cfun(ncf->cfun));
+  }
   qz_init_lib(st);
+
   return st;
 }
 
 /* free a state */
 void qz_free(qz_state_t* st)
 {
+  /*fprintf(stderr, "destroying env...\n");*/
   qz_unref(st, st->env);
+  /*fprintf(stderr, "destroying name_sym...\n");*/
   qz_unref(st, st->name_sym);
+  /*fprintf(stderr, "destroying sym_name...\n");*/
   qz_unref(st, st->sym_name);
   qz_collect(st);
   free(st);

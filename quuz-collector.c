@@ -92,8 +92,10 @@ static void mark_roots(qz_state_t* st)
         st->root_buffer[j - 1] = st->root_buffer[j];
       st->root_buffer_size--;
 
-      if(qz_color(cell) == QZ_CC_BLACK && qz_refcount(cell) == 0)
+      if(qz_color(cell) == QZ_CC_BLACK && qz_refcount(cell) == 0) {
+        /*fprintf(stderr, "mark_roots free(%p)\n", (void*)cell);*/
         free(cell);
+      }
     }
   }
 }
@@ -151,13 +153,15 @@ static void collect_white(qz_state_t* st, qz_cell_t* cell)
 
 static void collect_roots(qz_state_t* st)
 {
+  /* the paper say we should collect_white() here,
+    * but we can't because it frees the cell and we may (will?)
+    * come back to it when running the collect_white on another root,
+    * so we're partially duplicating collect_white() here and adding
+    * another loop to clean up unreferenced cells after */
   for(size_t i = 0; i < st->root_buffer_size; i++)
   {
-    /* the paper says we should collect_white() here,
-     * but we can't because it frees the cell and we may (will?)
-     * come back to it when running collect_white on another root,
-     * so we're partially duplicating collect_white() */
     qz_cell_t* cell = st->root_buffer[i];
+    /*LOGIT;*/
     qz_set_buffered(cell, 0);
     if(qz_color(cell) == QZ_CC_WHITE) {
       qz_set_color(cell, QZ_CC_BLACK);
@@ -166,7 +170,11 @@ static void collect_roots(qz_state_t* st)
   }
 
   for(size_t i = 0; i < st->root_buffer_size; i++)
-    free(st->root_buffer[i]);
+  {
+    qz_cell_t* cell = st->root_buffer[i];
+    if(qz_color(cell) == QZ_CC_BLACK && qz_refcount(cell) == 0)
+      free(cell);
+  }
 
   st->root_buffer_size = 0;
 }
@@ -213,8 +221,10 @@ static void release(qz_state_t* st, qz_cell_t* cell)
   /*LOGIT;*/
   all_children(st, cell, decrement);
   qz_set_color(cell, QZ_CC_BLACK);
-  if(!qz_buffered(cell))
+  if(!qz_buffered(cell)) {
+    /*fprintf(stderr, "release free(%p)\n", (void*)cell);*/
     free(cell); /* I never liked that game */
+  }
 }
 
 /* public functions */
@@ -237,5 +247,6 @@ void qz_collect(qz_state_t* st)
   scan_roots(st);
   /*fprintf(stderr, "collect_roots starting...\n");*/
   collect_roots(st);
+  /*fprintf(stderr, "qz_collect done\n");*/
 }
 

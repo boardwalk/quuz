@@ -102,6 +102,11 @@ typedef struct qz_state {
 
 typedef qz_obj_t (*qz_cfun_t)(qz_state_t* st, qz_obj_t args);
 
+typedef struct qz_named_cfun {
+  qz_cfun_t cfun;
+  const char* name;
+} qz_named_cfun_t;
+
 /* quuz-object.c */
 extern qz_obj_t const QZ_NIL;
 extern qz_obj_t const QZ_TRUE;

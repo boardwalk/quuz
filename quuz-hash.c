@@ -70,8 +70,13 @@ static void realloc_hash(qz_obj_t* obj)
   qz_cell_t* cell = qz_to_cell(*obj);
   assert(qz_refcount(cell) == 1);
 
+  /* make new hash */
   qz_cell_t* new_cell = make_hash(cell->value.array.capacity * 2);
 
+  new_cell->info = cell->info; /* collector fields must be copied */
+  new_cell->value.array.size = cell->value.array.size;
+
+  /* copy pairs to new hash */
   for(size_t i = 0; i < cell->value.array.capacity; i++)
   {
     qz_pair_t* pair = QZ_CELL_DATA(cell, qz_pair_t) + i;
@@ -85,7 +90,6 @@ static void realloc_hash(qz_obj_t* obj)
   }
 
   /* replace old cell with new */
-  new_cell->info = cell->info;
   free(cell);
   *obj = qz_from_cell(new_cell);
 }
@@ -93,7 +97,7 @@ static void realloc_hash(qz_obj_t* obj)
 /* create a new hash object */
 qz_obj_t qz_make_hash()
 {
-  return qz_from_cell(make_hash(8));
+  return qz_from_cell(make_hash(32));
 }
 
 /* retrieve a value from a hash object given a key

@@ -47,7 +47,7 @@ digit = [0-9]
 
 hexDigit = digit | [a-fA-F]
 
-explicitSign = < '+' | '-' > {concat_string(*yytext);}
+explicitSign = < ('+' | '-') > {concat_string(*yytext);}
 
 specialSubsequent = explicitSign
   | '.' {concat_string('.');}

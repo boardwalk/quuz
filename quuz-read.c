@@ -58,7 +58,7 @@ static qz_cell_t* grow_array(qz_cell_t* cell, size_t elem_size)
 
 static void concat_string(char c)
 {
-  //printf("concat_string(%c)\n", c);
+  /*printf("concat_string(%c)\n", c);*/
 
   qz_obj_t* obj = qz_vector_tail_ptr(g_stack);
   qz_cell_t* cell = qz_to_cell(*obj);
@@ -75,7 +75,7 @@ static void concat_string(char c)
 
 static void concat_bytevector(int b)
 {
-  //printf("concat_bytevector(%d)\n", b);
+  /*printf("concat_bytevector(%d)\n", b);*/
 
   qz_obj_t* obj = qz_vector_tail_ptr(g_stack);
   qz_cell_t* cell = qz_to_cell(*obj);
@@ -94,9 +94,9 @@ static void append(qz_obj_t value_obj)
 {
   qz_obj_t* obj = qz_vector_tail_ptr(g_stack);
 
-  //printf("append(%lu)\n", value_obj.value);
-  //printf("  stack obj: "); qz_write(*obj, -1, stdout); fputc('\n', stdout);
-  //printf("  value obj: "); qz_write(value_obj, -1, stdout); fputc('\n', stdout);
+  /*printf("append(%lu)\n", value_obj.value);
+  printf("  stack obj: "); qz_write(*obj, -1, stdout); fputc('\n', stdout);
+  printf("  value obj: "); qz_write(value_obj, -1, stdout); fputc('\n', stdout);*/
 
   if(qz_is_pair(*obj))
   {
@@ -145,13 +145,13 @@ static void append(qz_obj_t value_obj)
     assert(0); /* attempt to append cell to object of wrong type */
   }
 
-  //printf("  stack obj (after): "); qz_write(*obj, -1, stdout); fputc('\n', stdout);
+  /*printf("  stack obj (after): "); qz_write(*obj, -1, stdout); fputc('\n', stdout);*/
 }
 
 /* push an object onto the stack */
 static void push(qz_obj_t obj)
 {
-  //printf("push()\n");
+  /*printf("push()\n");*/
 
   qz_cell_t* stack_cell = qz_to_cell(g_stack);
 
@@ -168,7 +168,7 @@ static void push(qz_obj_t obj)
 /* pop an object from the stack, appending it to the container at the new top of the stack */
 static void pop()
 {
-  //printf("pop()\n");
+  /*printf("pop()\n");*/
 
   qz_cell_t* stack_cell = qz_to_cell(g_stack);
 
@@ -182,7 +182,7 @@ static void pop()
 /* pop a string from the stack, appending the matching symbol to the container at the top of the stack */
 static void pop_sym()
 {
-  //printf("pop_iden()\n");
+  /*printf("pop_sym()\n");*/
 
   qz_cell_t* stack_cell = qz_to_cell(g_stack);
 
@@ -196,7 +196,7 @@ static void pop_sym()
 /* push a pair onto the stack */
 static void push_pair()
 {
-  //printf("push_pair()\n");
+  /*printf("push_pair()\n");*/
 
   push(qz_make_pair(QZ_NIL, QZ_NIL));
 }
@@ -204,7 +204,7 @@ static void push_pair()
 /* push a vector onto the stack */
 static void push_vector()
 {
-  //printf("push_vector()\n");
+  /*printf("push_vector()\n");*/
 
   push(make_array(QZ_CT_VECTOR, sizeof(qz_obj_t)));
 }
@@ -212,7 +212,7 @@ static void push_vector()
 /* push a bytevector onto the stack */
 static void push_bytevector()
 {
-  //printf("push_bytevector()\n");
+  /*printf("push_bytevector()\n");*/
 
   push(make_array(QZ_CT_BYTEVECTOR, sizeof(uint8_t)));
 }
@@ -220,7 +220,7 @@ static void push_bytevector()
 /* push a string onto the stack */
 static void push_string()
 {
-  //printf("push_string()\n");
+  /*printf("push_string()\n");*/
 
   push(make_array(QZ_CT_STRING, sizeof(char)));
 }
@@ -228,7 +228,7 @@ static void push_string()
 /* append a char value to the container at the top of the stack */
 static void append_char(char c)
 {
-  //printf("append_char(%c (%d))\n", c, c);
+  /*printf("append_char(%c (%d))\n", c, c);*/
 
   append(qz_from_char(c));
 }
@@ -236,7 +236,7 @@ static void append_char(char c)
 /* append a number value to the container at the top of the stack */
 static void append_number(intptr_t i)
 {
-  //printf("append_number(%ld)\n", i);
+  /*printf("append_number(%ld)\n", i);*/
 
   append(qz_from_fixnum(i));
 }
@@ -244,7 +244,7 @@ static void append_number(intptr_t i)
 /* append a boolean value to the container at the top of the stack */
 static void append_bool(int b)
 {
-  //printf("append_boolean(%d)\n", b);
+  /*printf("append_boolean(%d)\n", b);*/
 
   append(qz_from_bool(b));
 }
@@ -252,7 +252,7 @@ static void append_bool(int b)
 /* append an identifier constructed from a C-style string to container at the top of the stack */
 static void append_sym(const char* s)
 {
-  //printf("push_identifier_c(%s)\n", s);
+  /*printf("push_identifier_c(%s)\n", s);*/
 
   push_string();
   while(*s)

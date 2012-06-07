@@ -39,12 +39,6 @@ static ALIGNED qz_obj_t qz_scm_define(qz_state_t* st, qz_obj_t args)
   return QZ_NIL;
 }
 
-static ALIGNED qz_obj_t qz_scm_quote(qz_state_t* st, qz_obj_t args)
-{
-  // (quote a) => a
-  return qz_to_pair(args)->first;
-}
-
 static ALIGNED qz_obj_t qz_scm_write(qz_state_t* st, qz_obj_t args)
 {
   // (write obj)
@@ -55,22 +49,9 @@ static ALIGNED qz_obj_t qz_scm_write(qz_state_t* st, qz_obj_t args)
   return QZ_NIL;
 }
 
-static ALIGNED qz_obj_t qz_scm_lambda(qz_state_t* st, qz_obj_t args)
-{
-  // (lambda <formals> <body>)
-  qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
-
-  cell->value.pair.first = qz_ref(st, qz_list_head(st->env));
-  cell->value.pair.rest = qz_ref(st, args);
-
-  return qz_from_cell(cell);
-}
-
 void qz_init_lib(qz_state_t* st)
 {
   set_toplevel(st, "define", qz_scm_define);
-  set_toplevel(st, "quote", qz_scm_quote);
   set_toplevel(st, "write", qz_scm_write);
-  set_toplevel(st, "lambda", qz_scm_lambda);
 }
 

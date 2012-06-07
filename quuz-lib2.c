@@ -42,13 +42,10 @@ QZ_DEF_CFUN(scm_quote) /* 4.1.2. Literal expressions */
 
 QZ_DEF_CFUN(scm_lambda) /* 4.1.4. Procedures */
 {
-  qz_obj_t formals = qz_required_arg(st, &args);
-  qz_obj_t body = args;
-
   qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
 
-  cell->value.pair.first = qz_ref(st, formals);
-  cell->value.pair.rest = qz_ref(st, body);
+  cell->value.pair.first = qz_ref(st, qz_list_head(st->env));
+  cell->value.pair.rest = qz_ref(st, args);
 
   return qz_from_cell(cell);
 }

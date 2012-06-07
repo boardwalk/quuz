@@ -3,12 +3,12 @@ use warnings;
 use Test::Base;
 use Quuz::Filters;
 
-sub exec {
+sub run_ {
   my $data = shift;
-  with_valgrind($data, "./quuz", "-e");
+  with_valgrind($data, "./quuz", "-r");
 }
 
-filters { input => 'exec', expected => 'chomp' };
+filters { input => 'run_', expected => 'chomp' };
 
 __END__
 

@@ -6,18 +6,21 @@
 int main(int argc, char* argv[])
 {
   FILE* fp = stdin;
-  enum { UNKNOWN, PARSE, EXEC } mode = UNKNOWN;
+  enum { UNKNOWN, PARSE, RUN, EVAL } mode = UNKNOWN;
   int debug = 0;
 
   /* parse options */
   int c;
-  while((c = getopt(argc, argv, "ped")) != -1) {
+  while((c = getopt(argc, argv, "pred")) != -1) {
     switch(c) {
       case 'p':
         mode = PARSE;
         break;
+      case 'r':
+        mode = RUN;
+        break;
       case 'e':
-        mode = EXEC;
+        mode = EVAL;
         break;
       case 'd':
         debug = 1;
@@ -47,9 +50,22 @@ int main(int argc, char* argv[])
       break;
 
     if(mode == PARSE)
+    {
       qz_write(st, obj, -1, stdout);
-    else if(mode == EXEC)
+    }
+    else if(mode == RUN)
+    {
       qz_unref(st, qz_peval(st, obj));
+    }
+    else if(mode == EVAL)
+    {
+      qz_obj_t result = qz_peval(st, obj);
+      if(!qz_is_nil(result))
+      {
+        qz_write(st, result, -1, stdout);
+        qz_unref(st, result);
+      }
+    }
 
     qz_unref(st, obj);
   }

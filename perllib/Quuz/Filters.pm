@@ -4,7 +4,7 @@ use warnings;
 use IPC::Open2;
 
 our @ISA = qw(Exporter);
-our @EXPORT = qw(with_valgrind);
+our @EXPORT = qw(external with_valgrind);
 
 sub external {
   my $data = shift;

@@ -75,7 +75,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 {
   if(qz_is_pair(obj))
   {
-    qz_obj_t fun = qz_eval(st, qz_first(obj));
+    qz_obj_t fun = qz_eval(st, qz_required_arg(st, &obj));
 
     if(qz_is_fun(fun))
     {
@@ -83,11 +83,24 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
       qz_obj_t formals = qz_first(qz_rest(fun));
       qz_obj_t body = qz_first(qz_rest(qz_rest(fun)));
 
+      /* bind arguments */
+      qz_obj_t fun_env = qz_make_hash();
+
+      for(;;) {
+        qz_obj_t param = qz_optional_arg(st, &formals);
+
+        if(qz_is_nil(param))
+          break; /* ran out of params */
+
+        /* TODO cleanup fun_env if this fails */
+        qz_obj_t arg = qz_eval(st, qz_required_arg(st, &obj));
+
+        qz_set_hash(st, &fun_env, param, arg);
+      }
+
       /* push environment */
       qz_obj_t old_env = st->env;
-      st->env = qz_make_pair(qz_ref(st, env), qz_ref(st, st->env));
-
-      /* TODO bind arguments */
+      st->env = qz_make_pair(qz_make_pair(fun_env, qz_ref(st, env)), qz_ref(st, st->env));
 
       /* execute function */
       qz_obj_t result = qz_eval(st, body);
@@ -100,10 +113,10 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     }
     else if(qz_is_cfun(fun))
     {
-      return qz_to_cfun(fun)(st, qz_rest(obj));
+      return qz_to_cfun(fun)(st, obj);
     }
 
-    return qz_error(st, "uncallable value", obj);
+    return qz_error(st, "uncallable value", fun);
   }
 
   if(qz_is_sym(obj))

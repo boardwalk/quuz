@@ -52,3 +52,11 @@ Leaks
 --- expected
 "foo"
 
+=== Arguments
+Leaks
+--- SKIP
+--- input
+(write "hi") ((lambda (x) (write (+ x 3))) 5)
+--- expected
+"hi"8
+

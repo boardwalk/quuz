@@ -166,6 +166,9 @@ qz_obj_t qz_first(qz_obj_t);
  * qz_is_pair(obj) must be true */
 qz_obj_t qz_rest(qz_obj_t);
 
+qz_obj_t qz_required_arg(qz_state_t* st, qz_obj_t* obj);
+qz_obj_t qz_optional_arg(qz_state_t* st, qz_obj_t* obj);
+
 /* */
 
 qz_obj_t* qz_list_head_ptr(qz_obj_t obj);

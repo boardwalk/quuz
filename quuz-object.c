@@ -216,6 +216,24 @@ qz_obj_t qz_rest(qz_obj_t obj) {
   return qz_to_cell(obj)->value.pair.rest;
 }
 
+qz_obj_t qz_required_arg(qz_state_t* st, qz_obj_t* obj)
+{
+  if(!qz_is_pair(*obj))
+    qz_error(st, "expected list", *obj);
+  qz_pair_t* pair = qz_to_pair(*obj);
+  *obj = pair->rest;
+  return pair->first;
+}
+
+qz_obj_t qz_optional_arg(qz_state_t* st, qz_obj_t* obj)
+{
+  if(!qz_is_pair(*obj))
+    return QZ_NIL;
+  qz_pair_t* pair = qz_to_pair(*obj);
+  *obj = pair->rest;
+  return pair->first;
+}
+
 qz_obj_t* qz_list_head_ptr(qz_obj_t obj)
 {
   assert(qz_is_pair(obj));

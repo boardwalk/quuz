@@ -3,24 +3,6 @@
 #define ALIGNED __attribute__ ((aligned (8)))
 #define QZ_DEF_CFUN(n) static ALIGNED qz_obj_t n(qz_state_t* st, qz_obj_t args)
 
-static qz_obj_t qz_required_arg(qz_state_t* st, qz_obj_t* obj)
-{
-  if(!qz_is_pair(*obj))
-    qz_error(st, "expected list", *obj);
-  qz_pair_t* pair = qz_to_pair(*obj);
-  *obj = pair->rest;
-  return pair->first;
-}
-
-static qz_obj_t qz_optional_arg(qz_state_t* st, qz_obj_t* obj)
-{
-  if(!qz_is_pair(*obj))
-    return QZ_NIL;
-  qz_pair_t* pair = qz_to_pair(*obj);
-  *obj = pair->rest;
-  return pair->first;
-}
-
 static qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t var)
 {
   /* TODO */

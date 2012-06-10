@@ -2,7 +2,9 @@
 #include <assert.h>
 #include <ctype.h>
 
-/*static const char* type_name(qz_cell_type_t ct) {
+#ifdef DEBUG_COLLECTOR
+static const char* type_name(qz_cell_type_t ct)
+{
   switch(ct) {
     case QZ_CT_PAIR:
       return "pair";
@@ -22,7 +24,8 @@
   return "unknown";
 }
 
-static const char* color_name(qz_cell_color_t cc) {
+static const char* color_name(qz_cell_color_t cc)
+{
   switch(cc) {
     case QZ_CC_BLACK:
       return "black";
@@ -41,7 +44,8 @@ void describe(qz_cell_t* cell)
   fprintf(stderr, "<%p r=%lu t=%s c=%s b=%lu>",
       (void*)cell, qz_refcount(cell),
       type_name(qz_type(cell)), color_name(qz_color(cell)), qz_buffered(cell));
-}*/
+}
+#endif
 
 static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* need_space);
 
@@ -54,7 +58,9 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     return;
   }
 
-  /*describe(cell);*/
+#ifdef DEBUG_COLLECTOR
+  describe(cell);
+#endif
 
   if(qz_type(cell) == QZ_CT_PAIR)
   {
@@ -222,7 +228,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
   }
   else if(qz_type(cell) == QZ_CT_REAL)
   {
-    // TODO make this readable by qz_read()
+    /* TODO make this readable by qz_read() */
     if(*need_space) fputc(' ', fp);
 
     fprintf(fp, "%f", cell->value.real);
@@ -262,7 +268,7 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
       name = qz_get_hash(st, st->sym_name, obj);
 
     if(qz_is_string(name)) {
-      // TODO make this readable by qz_read()
+      /* TODO make this readable by qz_read() */
       qz_cell_t* cell = qz_to_cell(name);
       fprintf(fp, "%.*s", (int)cell->value.array.size, QZ_CELL_DATA(cell, char));
     }

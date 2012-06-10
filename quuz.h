@@ -112,10 +112,10 @@ extern qz_obj_t const QZ_NIL;
 extern qz_obj_t const QZ_TRUE;
 extern qz_obj_t const QZ_FALSE;
 
-int qz_is_nil(qz_obj_t obj);
-int qz_is_fixnum(qz_obj_t obj);
-int qz_is_cell(qz_obj_t obj);
-int qz_is_cfun(qz_obj_t obj);
+int qz_is_nil(qz_obj_t);
+int qz_is_fixnum(qz_obj_t);
+int qz_is_cell(qz_obj_t);
+int qz_is_cfun(qz_obj_t);
 int qz_is_sym(qz_obj_t);
 int qz_is_bool(qz_obj_t);
 int qz_is_char(qz_obj_t);
@@ -143,10 +143,10 @@ qz_obj_t qz_from_cfun(qz_cfun_t);
 qz_obj_t qz_from_bool(int);
 qz_obj_t qz_from_char(char);
 
-size_t qz_refcount(qz_cell_t* cell);
-qz_cell_type_t qz_type(qz_cell_t* cell);
-qz_cell_color_t qz_color(qz_cell_t* cell);
-size_t qz_buffered(qz_cell_t* cell);
+size_t qz_refcount(qz_cell_t*);
+qz_cell_type_t qz_type(qz_cell_t*);
+qz_cell_color_t qz_color(qz_cell_t*);
+size_t qz_buffered(qz_cell_t*);
 
 void qz_set_refcount(qz_cell_t* cell, size_t rc);
 void qz_set_type(qz_cell_t* cell, qz_cell_type_t ct);
@@ -160,11 +160,11 @@ qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name);
 
 /* returns the first member of a pair
  * qz_is_pair(obj) must be true */
-qz_obj_t qz_first(qz_obj_t obj);
+qz_obj_t qz_first(qz_obj_t);
 
 /* returns the rest member of a pair
  * qz_is_pair(obj) must be true */
-qz_obj_t qz_rest(qz_obj_t obj);
+qz_obj_t qz_rest(qz_obj_t);
 
 /* */
 
@@ -183,12 +183,12 @@ qz_obj_t qz_vector_tail(qz_obj_t obj);
 int qz_equal(qz_obj_t a, qz_obj_t b);
 
 /* quuz-hash.c */
-qz_obj_t qz_make_hash();
+qz_obj_t qz_make_hash(void);
 qz_obj_t qz_get_hash(qz_state_t* st, qz_obj_t obj, qz_obj_t key);
 void qz_set_hash(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value);
 
 /* quuz-state.c */
-qz_state_t* qz_alloc();
+qz_state_t* qz_alloc(void);
 void qz_free(qz_state_t* st);
 qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj);
 qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj);

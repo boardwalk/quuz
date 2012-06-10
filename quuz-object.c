@@ -5,8 +5,8 @@
 #include <limits.h>
 
 qz_obj_t const QZ_NIL = { (size_t)NULL | QZ_PT_CELL };
-qz_obj_t const QZ_TRUE = { (1 << 4) | QZ_PT_BOOL };
-qz_obj_t const QZ_FALSE = { (0 << 4) | QZ_PT_BOOL };
+qz_obj_t const QZ_TRUE = { (1 << 5) | QZ_PT_BOOL };
+qz_obj_t const QZ_FALSE = { (0 << 5) | QZ_PT_BOOL };
 
 /* qz_is_<type> */
 static int cell_of_type(qz_obj_t obj, qz_cell_type_t type) {

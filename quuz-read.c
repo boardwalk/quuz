@@ -166,7 +166,7 @@ static void push(qz_obj_t obj)
 }
 
 /* pop an object from the stack, appending it to the container at the new top of the stack */
-static void pop()
+static void pop(void)
 {
   /*printf("pop()\n");*/
 
@@ -180,7 +180,7 @@ static void pop()
 }
 
 /* pop a string from the stack, appending the matching symbol to the container at the top of the stack */
-static void pop_sym()
+static void pop_sym(void)
 {
   /*printf("pop_sym()\n");*/
 
@@ -194,7 +194,7 @@ static void pop_sym()
 }
 
 /* push a pair onto the stack */
-static void push_pair()
+static void push_pair(void)
 {
   /*printf("push_pair()\n");*/
 
@@ -202,7 +202,7 @@ static void push_pair()
 }
 
 /* push a vector onto the stack */
-static void push_vector()
+static void push_vector(void)
 {
   /*printf("push_vector()\n");*/
 
@@ -210,7 +210,7 @@ static void push_vector()
 }
 
 /* push a bytevector onto the stack */
-static void push_bytevector()
+static void push_bytevector(void)
 {
   /*printf("push_bytevector()\n");*/
 
@@ -218,7 +218,7 @@ static void push_bytevector()
 }
 
 /* push a string onto the stack */
-static void push_string()
+static void push_string(void)
 {
   /*printf("push_string()\n");*/
 

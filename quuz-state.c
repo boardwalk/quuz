@@ -23,7 +23,7 @@ static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t iden)
 }
 
 /* create a state */
-qz_state_t* qz_alloc()
+qz_state_t* qz_alloc(void)
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));
   st->root_buffer_size = 0;
@@ -75,19 +75,13 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 {
   if(qz_is_pair(obj))
   {
-    qz_obj_t sym = qz_first(obj);
-    if(!qz_is_sym(sym))
-      return qz_error(st, "list does not start with an symbol", obj);
+    qz_obj_t fun = qz_eval(st, qz_first(obj));
 
-    qz_obj_t value = qz_lookup(st, sym);
-    if(qz_is_nil(value))
-      return qz_error(st, "unbound variable", obj);
-
-    if(qz_is_fun(value))
+    if(qz_is_fun(fun))
     {
-      qz_obj_t env = qz_first(value);
-      qz_obj_t formals = qz_first(qz_rest(value));
-      qz_obj_t body = qz_first(qz_rest(qz_rest(value)));
+      qz_obj_t env = qz_first(fun);
+      qz_obj_t formals = qz_first(qz_rest(fun));
+      qz_obj_t body = qz_first(qz_rest(qz_rest(fun)));
 
       /* push environment */
       qz_obj_t old_env = st->env;
@@ -104,9 +98,9 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 
       return result;
     }
-    else if(qz_is_cfun(value))
+    else if(qz_is_cfun(fun))
     {
-      return qz_to_cfun(value)(st, qz_rest(obj));
+      return qz_to_cfun(fun)(st, qz_rest(obj));
     }
 
     return qz_error(st, "uncallable value", obj);

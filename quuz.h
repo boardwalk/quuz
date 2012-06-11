@@ -92,6 +92,8 @@ typedef struct qz_state {
   qz_obj_t sym_name;
   /* next number to assign to a symbol */
   size_t next_sym;
+  /* "body" sym, used in "lambda" and "define" */
+  qz_obj_t body_sym;
   /* "else" sym, used in "cond" */
   qz_obj_t else_sym;
   /* "=>" sym, used in "cond" */

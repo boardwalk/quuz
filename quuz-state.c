@@ -1,8 +1,7 @@
 #include "quuz.h"
 #include <stdlib.h>
 
-void qz_init_lib(qz_state_t*); /* quuz-lib.c */
-extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[]; /* quuz-lib2.c */
+extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[]; /* quuz-lib.c */
 
 /* lookup the value of an identifier in the current environment */
 static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t iden)
@@ -35,6 +34,7 @@ qz_state_t* qz_alloc(void)
   st->sym_name = qz_make_hash();
   /*fprintf(stderr, "sym_name = %p\n", (void*)qz_to_cell(st->sym_name));*/
   st->next_sym = 1;
+  st->body_sym = qz_make_sym(st, qz_make_string("body"));
   st->else_sym = qz_make_sym(st, qz_make_string("else"));
   st->arrow_sym = qz_make_sym(st, qz_make_string("=>"));
 
@@ -43,7 +43,6 @@ qz_state_t* qz_alloc(void)
     qz_set_hash(st, qz_list_head_ptr(qz_list_head(st->env)),
         qz_make_sym(st, qz_make_string(ncf->name)), qz_from_cfun(ncf->cfun));
   }
-  qz_init_lib(st);
 
   return st;
 }

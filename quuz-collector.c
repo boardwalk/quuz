@@ -3,14 +3,14 @@
 #include <stdlib.h>
 
 #ifdef DEBUG_COLLECTOR
-void describe(qz_cell_t*); /* quuz-write.c */
-void logit(const char* fn, qz_cell_t* cell)
+void describe(qz_state_t*, qz_cell_t*); /* quuz-write.c */
+void logit(qz_state_t* st, const char* fn, qz_cell_t* cell)
 {
   fprintf(stderr, "%s(", fn);
-  describe(cell);
+  describe(st, cell);
   fputs(")\n", stderr);
 }
-#define D_LOG logit(__FUNCTION__, cell)
+#define D_LOG logit(st, __FUNCTION__, cell)
 #define D_PRINTF(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define D_LOG ((void)0)

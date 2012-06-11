@@ -92,7 +92,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
         if(qz_is_nil(param))
           break; /* ran out of params */
 
-        /* TODO cleanup fun_env if this fails */
+        /* TODO cleanup fun and fun_env if this fails */
         qz_obj_t arg = qz_eval(st, qz_required_arg(st, &obj));
 
         qz_set_hash(st, &fun_env, param, arg);
@@ -103,19 +103,23 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
       st->env = qz_make_pair(qz_make_pair(fun_env, qz_ref(st, env)), qz_ref(st, st->env));
 
       /* execute function */
+      /* TODO cleanup fun and env if this fails */
       qz_obj_t result = qz_eval(st, body);
 
       /* pop environment */
       qz_unref(st, st->env);
       st->env = old_env;
 
+      qz_unref(st, fun);
       return result;
     }
     else if(qz_is_cfun(fun))
     {
+      /* no need to unref, this isn't a cell */
       return qz_to_cfun(fun)(st, obj);
     }
 
+    /* TODO unref fun */
     return qz_error(st, "uncallable value", fun);
   }
 
@@ -140,7 +144,7 @@ qz_obj_t qz_error(qz_state_t* st, const char* msg, qz_obj_t context)
   fputc('\n', stderr);
 
   fputs("Context: ", stderr);
-  qz_write(st, context, -1, stderr);
+  qz_write(st, context, 5, stderr);
   fputc('\n', stderr);
 
   longjmp(st->error_handler, 1);

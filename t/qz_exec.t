@@ -26,8 +26,6 @@ x
 "foo"
 
 === Lambda
-Leaks
---- SKIP
 --- input
 (define x (lambda () 'y))
 (write (x))
@@ -35,8 +33,6 @@ Leaks
 y
 
 === Lambda 2
-Leaks
---- SKIP
 --- input
 (define x (lambda () (write 'foo)))
 (x)
@@ -44,8 +40,6 @@ Leaks
 foo
 
 === Lambda 3
-Leaks
---- SKIP
 --- input
 (define x (lambda () (write "foo")))
 (x)
@@ -53,8 +47,6 @@ Leaks
 "foo"
 
 === Arguments
-Leaks
---- SKIP
 --- input
 (write "hi") ((lambda (x) (write (+ x 3))) 5)
 --- expected

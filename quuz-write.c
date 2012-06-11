@@ -39,8 +39,9 @@ static const char* color_name(qz_cell_color_t cc)
   return "unknown";
 }
 
-void describe(qz_cell_t* cell)
+void describe(qz_state_t* st, qz_cell_t* cell)
 {
+  qz_write(st, qz_from_cell(cell), 0, stderr);
   fprintf(stderr, "<%p r=%lu t=%s c=%s b=%lu>",
       (void*)cell, qz_refcount(cell),
       type_name(qz_type(cell)), color_name(qz_color(cell)), qz_buffered(cell));
@@ -58,9 +59,9 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     return;
   }
 
-#ifdef DEBUG_COLLECTOR
-  describe(cell);
-#endif
+//#ifdef DEBUG_COLLECTOR
+//  describe(cell);
+//#endif
 
   if(qz_type(cell) == QZ_CT_PAIR)
   {

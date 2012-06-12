@@ -57,12 +57,7 @@ QZ_DEF_CFUN(scm_if)
   qz_obj_t test_result = qz_eval(st, test);
 
   if(qz_eqv(test_result, QZ_FALSE))
-  {
-    if(qz_is_nil(alternate))
-      return QZ_NIL;
-
-    return qz_eval(st, alternate);
-  }
+    return qz_eval(st, alternate); /* covers no alternate, nil evals to nil */
 
   qz_unref(st, test_result);
 

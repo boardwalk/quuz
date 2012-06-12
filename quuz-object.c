@@ -272,6 +272,12 @@ qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj)
 qz_obj_t qz_vector_head(qz_obj_t obj) { return *qz_vector_head_ptr(obj); }
 qz_obj_t qz_vector_tail(qz_obj_t obj) { return *qz_vector_tail_ptr(obj); }
 
+/* scheme's eqv? procedure */
+int qz_eqv(qz_obj_t a, qz_obj_t b)
+{
+  return a.value == b.value;
+}
+
 /* performs a bitwise comparison of two arrays
  * returns nonzero if equal */
 static int compare_array(qz_cell_t* a, qz_cell_t* b, size_t elem_size)

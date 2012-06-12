@@ -54,7 +54,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
 {
   if(!cell) {
     if(*need_space) fputc(' ', fp);
-    fputs("[nil]", fp);
+    fputs("()", fp);
     *need_space = 1;
     return;
   }

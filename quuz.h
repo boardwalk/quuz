@@ -221,7 +221,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj);
 
 /* throw an error. doesn't return
  * msg must be statically allocated */
-qz_obj_t qz_error(qz_state_t* st, const char* msg, qz_obj_t context);
+qz_obj_t qz_error(qz_state_t* st, const char* msg);
 
 /* push an object onto the safety buffer
  * objects in this buffer will be unref'd if a peval at a higher level catches an error */

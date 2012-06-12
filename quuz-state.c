@@ -168,7 +168,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     }
 
     qz_unref(st, fun);
-    return qz_error(st, "uncallable value", QZ_NIL);
+    return qz_error(st, "uncallable value");
   }
 
   if(qz_is_sym(obj))
@@ -176,7 +176,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     qz_obj_t value = qz_lookup(st, obj);
 
     if(qz_is_nil(value))
-      return qz_error(st, "unbound variable", obj);
+      return qz_error(st, "unbound variable");
 
     return qz_ref(st, value);
   }
@@ -184,7 +184,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
   return qz_ref(st, obj);
 }
 
-qz_obj_t qz_error(qz_state_t* st, const char* msg, qz_obj_t context)
+qz_obj_t qz_error(qz_state_t* st, const char* msg)
 {
   st->error_msg = msg;
   longjmp(*st->error_handler, 1);

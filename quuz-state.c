@@ -106,8 +106,8 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
       qz_obj_t formals = qz_first(qz_rest(fun));
       qz_obj_t body = qz_rest(qz_rest(fun));
 
-      /* bind arguments */
-      qz_obj_t fun_env = qz_make_hash();
+      /* create frame */
+      qz_obj_t frame = qz_make_hash();
 
       for(;;) {
         qz_obj_t param = qz_optional_arg(st, &formals);
@@ -115,16 +115,16 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
         if(qz_is_nil(param))
           break; /* ran out of params */
 
-        qz_push_safety(st, fun_env);
+        qz_push_safety(st, frame);
         qz_obj_t arg = qz_eval(st, qz_required_arg(st, &obj));
         qz_pop_safety(st, 1);
 
-        qz_hash_set(st, &fun_env, param, arg);
+        qz_hash_set(st, &frame, param, arg);
       }
 
-      /* push environment */
+      /* push environment with frame */
       qz_obj_t old_env = st->env;
-      st->env = qz_make_pair(qz_make_pair(fun_env, qz_ref(st, env)), qz_ref(st, st->env));
+      st->env = qz_make_pair(qz_make_pair(frame, qz_ref(st, env)), qz_ref(st, st->env));
       qz_push_safety(st, st->env);
 
       /* execute function */

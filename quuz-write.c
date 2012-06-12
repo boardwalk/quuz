@@ -264,13 +264,13 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
     if(*need_space) fputc(' ', fp);
 
     // translate identifier to string
-    qz_obj_t name = QZ_NIL;
+    qz_obj_t* name = NULL;
     if(st)
-      name = qz_get_hash(st, st->sym_name, obj);
+      name = qz_hash_get(st, st->sym_name, obj);
 
-    if(qz_is_string(name)) {
+    if(name) {
       /* TODO make this readable by qz_read() */
-      qz_cell_t* cell = qz_to_cell(name);
+      qz_cell_t* cell = qz_to_cell(*name);
       fprintf(fp, "%.*s", (int)cell->value.array.size, QZ_CELL_DATA(cell, char));
     }
     else {

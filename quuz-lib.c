@@ -3,12 +3,6 @@
 #define ALIGNED __attribute__ ((aligned (8)))
 #define QZ_DEF_CFUN(n) static ALIGNED qz_obj_t n(qz_state_t* st, qz_obj_t args)
 
-static qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t var)
-{
-  /* TODO */
-  return NULL;
-}
-
 static int qz_compare(qz_obj_t a, qz_obj_t b)
 {
   return a.value - b.value;
@@ -18,7 +12,7 @@ static void set_var(qz_state_t* st, qz_obj_t name, qz_obj_t value)
 {
   qz_obj_t outer_env = qz_to_cell(st->env)->value.pair.first;
   qz_obj_t* inner_env = &qz_to_cell(outer_env)->value.pair.first;
-  qz_set_hash(st, inner_env, name, value);
+  qz_hash_set(st, inner_env, name, value);
 }
 
 /******************************************************************************
@@ -69,6 +63,10 @@ QZ_DEF_CFUN(scm_set_b)
   qz_obj_t expr = qz_required_arg(st, &args);
 
   qz_obj_t* slot = qz_lookup(st, var);
+
+  if(!slot)
+    qz_error(st, "unbound variable in set!");
+
   qz_obj_t value = qz_eval(st, expr);
 
   qz_unref(st, *slot);
@@ -280,8 +278,10 @@ QZ_DEF_CFUN(scm_unless)
   }
 }
 
-/* 4.2.3. Sequencing */
+/* 4.2.2. Binding constructs */
 
+
+/* 4.2.3. Sequencing */
 QZ_DEF_CFUN(scm_begin)
 {
   qz_obj_t result = QZ_NIL;

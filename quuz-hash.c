@@ -94,23 +94,22 @@ static void realloc_hash(qz_obj_t* obj)
   *obj = qz_from_cell(new_cell);
 }
 
-/* create a new hash object */
 qz_obj_t qz_make_hash(void)
 {
   return qz_from_cell(make_hash(4));
 }
 
-/* retrieve a value from a hash object given a key
- * returns QZ_NIL if not found */
-qz_obj_t qz_get_hash(qz_state_t* st, qz_obj_t obj, qz_obj_t key)
+qz_obj_t* qz_hash_get(qz_state_t* st, qz_obj_t obj, qz_obj_t key)
 {
-  return get_hash(qz_to_cell(obj), key)->rest;
+  qz_pair_t* pair = get_hash(qz_to_cell(obj), key);
+
+  if(qz_is_nil(pair->rest))
+    return NULL;
+
+  return &pair->rest;
 }
 
-/* set a value into a hash object given a key
- * steals a reference from both key and value
- * obj may be rewritten if reallocated */
-void qz_set_hash(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value)
+void qz_hash_set(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value)
 {
   qz_cell_t* cell = qz_to_cell(*obj);
   qz_pair_t* pair = get_hash(cell, key);

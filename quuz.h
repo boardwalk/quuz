@@ -94,8 +94,8 @@ typedef struct qz_state {
 
   /* variables bindings
    * a list of a list of hashes
-   * the outer list is a stack of environment for currently executing functions
-   * the inner list is a stack of scopes for a particular function
+   * the outer list is a stack of environments for currently executing functions
+   * the inner list is a stack of frames for a particular function
    * each hash maps symbols to values */
   qz_obj_t env;
 
@@ -207,17 +207,39 @@ int qz_equal(qz_obj_t a, qz_obj_t b);
 /******************************************************************************
  * quuz-hash.c
  ******************************************************************************/
+
+/* create a new hash */
 qz_obj_t qz_make_hash(void);
-qz_obj_t qz_get_hash(qz_state_t* st, qz_obj_t obj, qz_obj_t key);
-void qz_set_hash(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value);
+
+/* retrieve a pointer to a slot in the hash object contain the value for a key
+ * returns NULL if not found */
+qz_obj_t* qz_hash_get(qz_state_t* st, qz_obj_t obj, qz_obj_t key);
+
+/* set a value into a hash object given a key
+ * steals a reference from both key and value
+ * obj may be rewritten if reallocated */
+void qz_hash_set(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value);
 
 /******************************************************************************
  * quuz-state.c
  ******************************************************************************/
+
+/* create a state */
 qz_state_t* qz_alloc(void);
+
+/* free a state */
 void qz_free(qz_state_t* st);
+
+/* evaluate an object, catching thrown errors
+ * returns the result of the evaluation */
 qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj);
+
+/* evaluate an object
+ * returns the result of the evaluation */
 qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj);
+
+/* find the slot for a symbol in the current environment */
+qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym);
 
 /* throw an error. doesn't return
  * msg must be statically allocated */

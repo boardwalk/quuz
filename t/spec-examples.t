@@ -83,7 +83,6 @@ no
 10
 
 === Assignments
---- SKIP
 --- input
 (define x 2)
 (+ x 1)

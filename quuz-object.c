@@ -193,18 +193,18 @@ qz_obj_t qz_make_pair(qz_obj_t first, qz_obj_t rest)
  * name is unrefed */
 qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name)
 {
-  qz_obj_t sym = qz_get_hash(st, st->name_sym, name);
-
-  if(qz_is_nil(sym)) {
-    sym = (qz_obj_t) { (st->next_sym++ << 5) | QZ_PT_SYM };
-    qz_ref(st, name); /* (1) +1 -2 */
-    qz_set_hash(st, &st->name_sym, name, sym);
-    qz_set_hash(st, &st->sym_name, sym, name);
-  }
-  else {
+  /* find existing symbol */
+  qz_obj_t* slot = qz_hash_get(st, st->name_sym, name);
+  if(slot) {
     qz_unref(st, name); /* (1) -1 */
+    return *slot;
   }
 
+  /* create new symbol */
+  qz_obj_t sym = (qz_obj_t) { (st->next_sym++ << 5) | QZ_PT_SYM };
+  qz_ref(st, name); /* (1) +1 -2 */
+  qz_hash_set(st, &st->name_sym, name, sym);
+  qz_hash_set(st, &st->sym_name, sym, name);
   return sym;
 }
 

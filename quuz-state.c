@@ -4,25 +4,6 @@
 
 extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[]; /* quuz-lib.c */
 
-/* lookup the value of an identifier in the current environment */
-static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t sym)
-{
-  qz_pair_t* scope = qz_to_pair(qz_list_head(st->env));
-
-  for(;;) {
-    qz_obj_t value = qz_get_hash(st, scope->first, sym);
-
-    if(!qz_is_nil(value))
-      return value;
-
-    if(qz_is_nil(scope->rest))
-      return QZ_NIL;
-
-    scope = qz_to_pair(scope->rest);
-  }
-}
-
-/* create a state */
 qz_state_t* qz_alloc(void)
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));
@@ -42,14 +23,13 @@ qz_state_t* qz_alloc(void)
 
   for(const qz_named_cfun_t* ncf = QZ_LIB_FUNCTIONS; ncf->cfun; ncf++)
   {
-    qz_set_hash(st, qz_list_head_ptr(qz_list_head(st->env)),
+    qz_hash_set(st, qz_list_head_ptr(qz_list_head(st->env)),
         qz_make_sym(st, qz_make_string(ncf->name)), qz_from_cfun(ncf->cfun));
   }
 
   return st;
 }
 
-/* free a state */
 void qz_free(qz_state_t* st)
 {
   /*fprintf(stderr, "destroying env...\n");*/
@@ -62,7 +42,6 @@ void qz_free(qz_state_t* st)
   free(st);
 }
 
-/* evaluate an object, top level */
 qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 {
   /* push state */
@@ -113,7 +92,6 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   return result;
 }
 
-/* evaluate an object */
 qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 {
   if(qz_is_pair(obj))
@@ -131,18 +109,18 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
       /* bind arguments */
       qz_obj_t fun_env = qz_make_hash();
 
-      qz_push_safety(st, fun_env);
       for(;;) {
         qz_obj_t param = qz_optional_arg(st, &formals);
 
         if(qz_is_nil(param))
           break; /* ran out of params */
 
+        qz_push_safety(st, fun_env);
         qz_obj_t arg = qz_eval(st, qz_required_arg(st, &obj));
+        qz_pop_safety(st, 1);
 
-        qz_set_hash(st, &fun_env, param, arg);
+        qz_hash_set(st, &fun_env, param, arg);
       }
-      qz_pop_safety(st, 1);
 
       /* push environment */
       qz_obj_t old_env = st->env;
@@ -173,15 +151,32 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 
   if(qz_is_sym(obj))
   {
-    qz_obj_t value = qz_lookup(st, obj);
+    qz_obj_t* slot = qz_lookup(st, obj);
 
-    if(qz_is_nil(value))
+    if(!slot)
       return qz_error(st, "unbound variable");
 
-    return qz_ref(st, value);
+    return qz_ref(st, *slot);
   }
 
   return qz_ref(st, obj);
+}
+
+qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym)
+{
+  qz_pair_t* scope = qz_to_pair(qz_list_head(st->env));
+
+  for(;;) {
+    qz_obj_t* slot = qz_hash_get(st, scope->first, sym);
+
+    if(slot)
+      return slot;
+
+    if(qz_is_nil(scope->rest))
+      return NULL;
+
+    scope = qz_to_pair(scope->rest);
+  }
 }
 
 qz_obj_t qz_error(qz_state_t* st, const char* msg)

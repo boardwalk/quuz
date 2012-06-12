@@ -299,8 +299,46 @@ QZ_DEF_CFUN(scm_let)
 
   /* push environment with frame */
   qz_obj_t old_env = st->env;
-  st->env = qz_make_pair(qz_make_pair(frame, qz_ref(st, qz_first(st->env))), qz_ref(st, st->env));
+  qz_obj_t env = qz_make_pair(frame, qz_ref(st, qz_first(st->env)));
+  st->env = qz_make_pair(env, qz_ref(st, st->env));
   qz_push_safety(st, st->env);
+
+  /* execute body */
+  qz_obj_t result = scm_begin(st, args);
+
+  /* pop environment */
+  qz_pop_safety(st, 1);
+  qz_unref(st, st->env);
+  st->env = old_env;
+
+  return result;
+}
+
+QZ_DEF_CFUN(scm_let_s)
+{
+  qz_obj_t bindings = qz_required_arg(st, &args);
+
+  /* push environment with frame */
+  qz_obj_t old_env = st->env;
+  qz_obj_t env = qz_make_pair(qz_make_hash(), qz_ref(st, qz_first(st->env)));
+  st->env = qz_make_pair(env, qz_ref(st, st->env));
+  qz_push_safety(st, st->env);
+
+  /* fill frame while binding */
+  for(;;) {
+    qz_obj_t binding = qz_optional_arg(st, &bindings);
+
+    if(qz_is_nil(binding))
+      break;
+
+    qz_obj_t sym = qz_required_arg(st, &binding);
+    qz_obj_t expr = qz_required_arg(st, &binding);
+
+    if(!qz_is_sym(sym))
+      qz_error(st, "expected symbol");
+
+    qz_hash_set(st, &qz_to_cell(env)->value.pair.first, sym, qz_eval(st, expr));
+  }
 
   /* execute body */
   qz_obj_t result = scm_begin(st, args);
@@ -530,6 +568,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_when, "when"},
   {scm_unless, "unless"},
   {scm_let, "let"},
+  {scm_let_s, "let*"},
   {scm_begin, "begin"},
   {scm_define, "define"},
   {scm_num_eq, "="},

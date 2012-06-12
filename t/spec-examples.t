@@ -168,3 +168,11 @@ unspecified
 6
 35
 
+=== Let*
+--- input
+(let ((x 2) (y 3))
+  (let* ((x 7) (z (+ x y)))
+    (* z x)))
+--- expected
+70
+

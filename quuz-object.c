@@ -219,7 +219,7 @@ qz_obj_t qz_rest(qz_obj_t obj) {
 qz_obj_t qz_required_arg(qz_state_t* st, qz_obj_t* obj)
 {
   if(!qz_is_pair(*obj))
-    qz_error(st, "expected list", *obj);
+    qz_error(st, "expected list");
   qz_pair_t* pair = qz_to_pair(*obj);
   *obj = pair->rest;
   return pair->first;

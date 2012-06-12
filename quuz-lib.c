@@ -320,7 +320,7 @@ QZ_DEF_CFUN(scm_define)
     qz_obj_t var = qz_required_arg(st, &args);
 
     if(!qz_is_sym(var))
-      return qz_error(st, "function variant of define not given symbol", var);
+      return qz_error(st, "function variant of define not given symbol");
 
     qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
 
@@ -331,7 +331,7 @@ QZ_DEF_CFUN(scm_define)
   }
   else
   {
-    return qz_error(st, "first argument to define must be a symbol or list", args);
+    return qz_error(st, "first argument to define must be a symbol or list");
   }
 
   return QZ_NIL;
@@ -413,7 +413,7 @@ QZ_DEF_CFUN(scm_num_add)
     qz_obj_t value = qz_eval(st, expr);
     if(!qz_is_fixnum(value)) {
       qz_unref(st, value);
-      return qz_error(st, "expected fixnum", expr);
+      return qz_error(st, "expected fixnum");
     }
 
     result = qz_from_fixnum(qz_to_fixnum(result) + qz_to_fixnum(value));
@@ -433,7 +433,7 @@ QZ_DEF_CFUN(scm_num_mul)
     qz_obj_t value = qz_eval(st, expr);
     if(!qz_is_fixnum(value)) {
       qz_unref(st, value);
-      return qz_error(st, "expected fixnum", expr);
+      return qz_error(st, "expected fixnum");
     }
 
     result = qz_from_fixnum(qz_to_fixnum(result) * qz_to_fixnum(value));
@@ -447,7 +447,7 @@ QZ_DEF_CFUN(scm_num_sub)
   qz_obj_t result = qz_eval(st, expr);
   if(!qz_is_fixnum(result)) {
     qz_unref(st, result);
-    return qz_error(st, "expected fixnum", expr);
+    return qz_error(st, "expected fixnum");
   }
 
   expr = qz_optional_arg(st, &args);
@@ -460,7 +460,7 @@ QZ_DEF_CFUN(scm_num_sub)
     qz_obj_t value = qz_eval(st, expr);
     if(!qz_is_fixnum(value)) {
       qz_unref(st, value);
-      qz_error(st, "expected fixnum", expr);
+      qz_error(st, "expected fixnum");
     }
 
     result = qz_from_fixnum(qz_to_fixnum(result) - qz_to_fixnum(value));

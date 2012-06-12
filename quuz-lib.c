@@ -9,15 +9,16 @@ static qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t var)
   return NULL;
 }
 
-static int qz_eqv(qz_obj_t a, qz_obj_t b)
-{
-  /* TODO */
-  return a.value == b.value;
-}
-
 static int qz_compare(qz_obj_t a, qz_obj_t b)
 {
   return a.value - b.value;
+}
+
+static void set_var(qz_state_t* st, qz_obj_t name, qz_obj_t value)
+{
+  qz_obj_t outer_env = qz_to_cell(st->env)->value.pair.first;
+  qz_obj_t* inner_env = &qz_to_cell(outer_env)->value.pair.first;
+  qz_set_hash(st, inner_env, name, value);
 }
 
 /******************************************************************************
@@ -33,12 +34,17 @@ QZ_DEF_CFUN(scm_quote)
 /* 4.1.4. Procedures */
 QZ_DEF_CFUN(scm_lambda)
 {
+  qz_obj_t formals = qz_ref(st, qz_required_arg(st, &args));
+  qz_obj_t body = qz_make_pair(st->begin_sym, qz_ref(st, args));
+
   qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
 
   cell->value.pair.first = qz_ref(st, qz_list_head(st->env));
-  cell->value.pair.rest = qz_ref(st, args);
+  cell->value.pair.rest = qz_make_pair(formals, body);
 
-  return qz_from_cell(cell);
+  qz_obj_t f = qz_from_cell(cell);
+
+  return f;
 }
 
 /* 4.1.5. Conditionals */
@@ -274,16 +280,27 @@ QZ_DEF_CFUN(scm_unless)
   }
 }
 
+/* 4.2.3. Sequencing */
+
+QZ_DEF_CFUN(scm_begin)
+{
+  qz_obj_t result = QZ_NIL;
+
+  /* eval expressions */
+  for(;;) {
+    qz_obj_t expr = qz_optional_arg(st, &args);
+
+    if(qz_is_nil(expr))
+      return result; /* ran out of expressions */
+
+    qz_unref(st, result);
+    result = qz_eval(st, expr);
+  }
+}
+
 /******************************************************************************
  * 5.2. Definitions
  ******************************************************************************/
-
-static void set_var(qz_state_t* st, qz_obj_t name, qz_obj_t value)
-{
-  qz_obj_t outer_env = qz_to_cell(st->env)->value.pair.first;
-  qz_obj_t* inner_env = &qz_to_cell(outer_env)->value.pair.first;
-  qz_set_hash(st, inner_env, name, value);
-}
 
 QZ_DEF_CFUN(scm_define)
 {
@@ -308,7 +325,7 @@ QZ_DEF_CFUN(scm_define)
     qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
 
     cell->value.pair.first = qz_ref(st, qz_list_head(st->env));
-    cell->value.pair.rest = qz_make_pair(st->body_sym, qz_ref(st, args));
+    cell->value.pair.rest = qz_ref(st, args);
 
     set_var(st, var, qz_from_cell(cell));
   }
@@ -478,6 +495,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_or, "or"},
   {scm_when, "when"},
   {scm_unless, "unless"},
+  {scm_begin, "begin"},
   {scm_define, "define"},
   {scm_num_eq, "="},
   {scm_num_lt, "<"},

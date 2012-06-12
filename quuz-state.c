@@ -1,15 +1,16 @@
 #include "quuz.h"
+#include <assert.h>
 #include <stdlib.h>
 
 extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[]; /* quuz-lib.c */
 
 /* lookup the value of an identifier in the current environment */
-static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t iden)
+static qz_obj_t qz_lookup(qz_state_t* st, qz_obj_t sym)
 {
   qz_pair_t* scope = qz_to_pair(qz_list_head(st->env));
 
   for(;;) {
-    qz_obj_t value = qz_get_hash(st, scope->first, iden);
+    qz_obj_t value = qz_get_hash(st, scope->first, sym);
 
     if(!qz_is_nil(value))
       return value;
@@ -26,6 +27,7 @@ qz_state_t* qz_alloc(void)
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));
   st->root_buffer_size = 0;
+  st->safety_buffer_size = 0;
   qz_obj_t toplevel = qz_make_hash();
   st->env = qz_make_pair(qz_make_pair(toplevel, QZ_NIL), QZ_NIL);
   /*fprintf(stderr, "toplevel = %p\n", (void*)qz_to_cell(toplevel));*/
@@ -34,7 +36,7 @@ qz_state_t* qz_alloc(void)
   st->sym_name = qz_make_hash();
   /*fprintf(stderr, "sym_name = %p\n", (void*)qz_to_cell(st->sym_name));*/
   st->next_sym = 1;
-  st->body_sym = qz_make_sym(st, qz_make_string("body"));
+  st->begin_sym = qz_make_sym(st, qz_make_string("begin"));
   st->else_sym = qz_make_sym(st, qz_make_string("else"));
   st->arrow_sym = qz_make_sym(st, qz_make_string("=>"));
 
@@ -63,10 +65,52 @@ void qz_free(qz_state_t* st)
 /* evaluate an object, top level */
 qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 {
-  if(setjmp(st->error_handler))
-    return QZ_NIL;
+  /* push state */
+  jmp_buf error_handler;
+  jmp_buf* old_error_handler = st->error_handler;
+  st->error_handler = &error_handler;
 
-  return qz_eval(st, obj);
+  size_t old_safety_buffer_size = st->safety_buffer_size;
+
+  /* call eval() protected by setjmp/longjmp */
+  qz_obj_t result;
+
+  if(setjmp(error_handler))
+  {
+    /* print error */
+    fprintf(stderr, "Error: %s\n", st->error_msg);
+    fputs("Context: ", stderr);
+    qz_write(st, obj, 3, stderr);
+    fputc('\n', stderr);
+
+    /* cleanup objects in safety buffer */
+    assert(st->safety_buffer_size >= old_safety_buffer_size);
+
+    for(size_t i = old_safety_buffer_size; i < st->safety_buffer_size; i++)
+    {
+      qz_obj_t safety_obj = st->safety_buffer[i];
+
+      if(qz_eqv(safety_obj, st->env))
+        st->env = qz_rest(st->env); /* pop environment */
+
+      qz_unref(st, safety_obj);
+    }
+
+    st->safety_buffer_size = old_safety_buffer_size;
+
+    /* return nil! */
+    result = QZ_NIL;
+  }
+  else
+  {
+    result = qz_eval(st, obj);
+    assert(st->safety_buffer_size == old_safety_buffer_size);
+  }
+
+  /* pop state */
+  st->error_handler = old_error_handler;
+
+  return result;
 }
 
 /* evaluate an object */
@@ -78,37 +122,42 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 
     if(qz_is_fun(fun))
     {
+      qz_push_safety(st, fun);
+
       qz_obj_t env = qz_first(fun);
       qz_obj_t formals = qz_first(qz_rest(fun));
-      qz_obj_t body = qz_first(qz_rest(qz_rest(fun)));
+      qz_obj_t body = qz_rest(qz_rest(fun));
 
       /* bind arguments */
       qz_obj_t fun_env = qz_make_hash();
 
+      qz_push_safety(st, fun_env);
       for(;;) {
         qz_obj_t param = qz_optional_arg(st, &formals);
 
         if(qz_is_nil(param))
           break; /* ran out of params */
 
-        /* TODO cleanup fun and fun_env if this fails */
         qz_obj_t arg = qz_eval(st, qz_required_arg(st, &obj));
 
         qz_set_hash(st, &fun_env, param, arg);
       }
+      qz_pop_safety(st, 1);
 
       /* push environment */
       qz_obj_t old_env = st->env;
       st->env = qz_make_pair(qz_make_pair(fun_env, qz_ref(st, env)), qz_ref(st, st->env));
+      qz_push_safety(st, st->env);
 
       /* execute function */
-      /* TODO cleanup fun and env if this fails */
       qz_obj_t result = qz_eval(st, body);
 
       /* pop environment */
+      qz_pop_safety(st, 1);
       qz_unref(st, st->env);
       st->env = old_env;
 
+      qz_pop_safety(st, 1);
       qz_unref(st, fun);
       return result;
     }
@@ -118,8 +167,8 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
       return qz_to_cfun(fun)(st, obj);
     }
 
-    /* TODO unref fun */
-    return qz_error(st, "uncallable value", fun);
+    qz_unref(st, fun);
+    return qz_error(st, "uncallable value", QZ_NIL);
   }
 
   if(qz_is_sym(obj))
@@ -135,17 +184,21 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
   return qz_ref(st, obj);
 }
 
-/* throw an error. doesn't return */
 qz_obj_t qz_error(qz_state_t* st, const char* msg, qz_obj_t context)
 {
-  fputs("Error: ", stderr);
-  fputs(msg, stderr);
-  fputc('\n', stderr);
+  st->error_msg = msg;
+  longjmp(*st->error_handler, 1);
+}
 
-  fputs("Context: ", stderr);
-  qz_write(st, context, 5, stderr);
-  fputc('\n', stderr);
+void qz_push_safety(qz_state_t* st, qz_obj_t obj)
+{
+  assert(st->safety_buffer_size < QZ_SAFETY_BUFFER_CAPACITY);
+  st->safety_buffer[st->safety_buffer_size++] = obj;
+}
 
-  longjmp(st->error_handler, 1);
+void qz_pop_safety(qz_state_t* st, size_t nobj)
+{
+  assert(st->safety_buffer_size >= nobj);
+  st->safety_buffer_size -= nobj;
 }
 

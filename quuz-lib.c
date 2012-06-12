@@ -42,9 +42,7 @@ QZ_DEF_CFUN(scm_lambda)
   cell->value.pair.first = qz_ref(st, qz_list_head(st->env));
   cell->value.pair.rest = qz_make_pair(formals, body);
 
-  qz_obj_t f = qz_from_cell(cell);
-
-  return f;
+  return qz_from_cell(cell);
 }
 
 /* 4.1.5. Conditionals */
@@ -115,14 +113,14 @@ QZ_DEF_CFUN(scm_cond)
 
   if(qz_eqv(expr, st->arrow_sym)) {
     /* get function */
-    //qz_protect(st, result);
+    qz_push_safety(st, result);
     qz_obj_t fun = qz_required_arg(st, &clause);
-    //qz_unprotect(st);
+    qz_pop_safety(st, 1);
     /* call function */
     qz_obj_t fun_call = qz_make_pair(qz_ref(st, fun), qz_make_pair(result, QZ_NIL));
-    //qz_protect(st, fun_call);
+    qz_push_safety(st, fun_call);
     result = qz_eval(st, fun_call);
-    //qz_unprotect(st);
+    qz_pop_safety(st, 1);
     qz_unref(st, fun_call);
     return result;
   }
@@ -312,15 +310,17 @@ QZ_DEF_CFUN(scm_define)
   else if(qz_is_pair(header))
   {
     /* function creation and assignment */
-    qz_obj_t var = qz_required_arg(st, &args);
-
+    qz_obj_t var = qz_required_arg(st, &header);
     if(!qz_is_sym(var))
       return qz_error(st, "function variant of define not given symbol");
+
+    qz_obj_t formals = qz_ref(st, header);
+    qz_obj_t body = qz_make_pair(st->begin_sym, qz_ref(st, args));
 
     qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
 
     cell->value.pair.first = qz_ref(st, qz_list_head(st->env));
-    cell->value.pair.rest = qz_ref(st, args);
+    cell->value.pair.rest = qz_make_pair(formals, body);
 
     set_var(st, var, qz_from_cell(cell));
   }

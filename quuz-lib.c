@@ -15,6 +15,8 @@ static void set_var(qz_state_t* st, qz_obj_t name, qz_obj_t value)
   qz_hash_set(st, inner_env, name, value);
 }
 
+QZ_DEF_CFUN(scm_begin);
+
 /******************************************************************************
  * 4.1. Primitive expression types
  ******************************************************************************/
@@ -247,14 +249,9 @@ QZ_DEF_CFUN(scm_when)
   qz_unref(st, result);
 
   /* eval expressions */
-  for(;;) {
-    qz_obj_t expr = qz_optional_arg(st, &args);
+  qz_unref(st, scm_begin(st, args));
 
-    if(qz_is_nil(expr))
-      return QZ_NIL; /* ran out of expressions */
-
-    qz_unref(st, qz_eval(st, expr));
-  }
+  return QZ_NIL;
 }
 
 QZ_DEF_CFUN(scm_unless)
@@ -268,18 +265,53 @@ QZ_DEF_CFUN(scm_unless)
   }
 
   /* eval expressions */
-  for(;;) {
-    qz_obj_t expr = qz_optional_arg(st, &args);
+  qz_unref(st, scm_begin(st, args));
 
-    if(qz_is_nil(expr))
-      return QZ_NIL; /* ran out of expressions */
-
-    qz_unref(st, qz_eval(st, expr));
-  }
+  return QZ_NIL;
 }
 
 /* 4.2.2. Binding constructs */
+QZ_DEF_CFUN(scm_let)
+{
+  qz_obj_t bindings = qz_required_arg(st, &args);
 
+  /* create frame */
+  qz_obj_t frame = qz_make_hash();
+
+  for(;;) {
+    qz_obj_t binding = qz_optional_arg(st, &bindings);
+
+    if(qz_is_nil(binding))
+      break;
+
+    qz_push_safety(st, frame);
+
+    qz_obj_t sym = qz_required_arg(st, &binding);
+    qz_obj_t expr = qz_required_arg(st, &binding);
+
+    if(!qz_is_sym(sym))
+      qz_error(st, "expected symbol");
+
+    qz_hash_set(st, &frame, sym, qz_eval(st, expr));
+
+    qz_pop_safety(st, 1);
+  }
+
+  /* push environment with frame */
+  qz_obj_t old_env = st->env;
+  st->env = qz_make_pair(qz_make_pair(frame, qz_ref(st, qz_first(st->env))), qz_ref(st, st->env));
+  qz_push_safety(st, st->env);
+
+  /* execute body */
+  qz_obj_t result = scm_begin(st, args);
+
+  /* pop environment */
+  qz_pop_safety(st, 1);
+  qz_unref(st, st->env);
+  st->env = old_env;
+
+  return result;
+}
 
 /* 4.2.3. Sequencing */
 QZ_DEF_CFUN(scm_begin)
@@ -497,6 +529,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_or, "or"},
   {scm_when, "when"},
   {scm_unless, "unless"},
+  {scm_let, "let"},
   {scm_begin, "begin"},
   {scm_define, "define"},
   {scm_num_eq, "="},

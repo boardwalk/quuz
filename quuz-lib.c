@@ -138,7 +138,7 @@ QZ_DEF_CFUN(scm_cond)
 
 QZ_DEF_CFUN(scm_case)
 {
-  qz_obj_t key = qz_eval(st, qz_required_arg(st, &args));
+  qz_obj_t result = qz_eval(st, qz_required_arg(st, &args));
 
   /* find matching clause */
   qz_obj_t clause;
@@ -163,27 +163,34 @@ QZ_DEF_CFUN(scm_case)
         break; /* ran out of datum */
       }
 
-      if(qz_eqv(datum, key))
+      if(qz_eqv(datum, result))
         break; /* hit matching clause */
     }
     if(!qz_is_nil(clause))
       break; /* hit matching clause */
   }
 
-  qz_unref(st, key);
-
-  if(qz_is_nil(clause))
-    return QZ_NIL;
+  if(qz_is_nil(clause)) {
+    qz_unref(st, result);
+    return QZ_NIL; /* no clause found */
+  }
 
   /* eval expressions in clause */
   qz_obj_t expr = qz_optional_arg(st, &clause);
 
   if(qz_eqv(expr, st->arrow_sym)) {
-    expr = qz_required_arg(st, &clause); /* skip arrow */
-    return qz_eval(st, expr); /* only one expression allowed */
+    /* get function */
+    qz_push_safety(st, result);
+    qz_obj_t fun = qz_required_arg(st, &clause);
+    qz_pop_safety(st, 1);
+    /* call function */
+    qz_obj_t fun_call = qz_make_pair(qz_ref(st, fun), qz_make_pair(result, QZ_NIL));
+    qz_push_safety(st, fun_call);
+    result = qz_eval(st, fun_call);
+    qz_pop_safety(st, 1);
+    qz_unref(st, fun_call);
+    return result;
   }
-
-  qz_obj_t result = QZ_NIL;
 
   for(;;) {
     if(qz_is_nil(expr))

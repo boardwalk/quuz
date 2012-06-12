@@ -97,7 +97,7 @@ static void realloc_hash(qz_obj_t* obj)
 /* create a new hash object */
 qz_obj_t qz_make_hash(void)
 {
-  return qz_from_cell(make_hash(32));
+  return qz_from_cell(make_hash(4));
 }
 
 /* retrieve a value from a hash object given a key

@@ -164,6 +164,9 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
   if(qz_is_null(obj))
     return qz_error(st, "cannot evaluate null");
 
+  if(qz_is_none(obj))
+    return qz_error(st, "cannot evaluate unspecified value");
+
   return qz_ref(st, obj);
 }
 

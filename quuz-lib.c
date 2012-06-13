@@ -15,6 +15,28 @@ static void set_var(qz_state_t* st, qz_obj_t name, qz_obj_t value)
   qz_hash_set(st, inner_env, name, value);
 }
 
+typedef int (*pred_fun)(qz_obj_t);
+
+qz_obj_t inner_predicate(qz_state_t* st, qz_obj_t args, pred_fun pf)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  int b = pf(value);
+  qz_unref(st, value);
+  return b ? QZ_TRUE : QZ_FALSE;
+}
+
+static void eval2(qz_state_t* st, qz_obj_t *args, qz_obj_t* value1, qz_obj_t* value2)
+{
+  qz_obj_t expr1 = qz_required_arg(st, args);
+  qz_obj_t expr2 = qz_required_arg(st, args);
+
+  *value1 = qz_eval(st, expr1);
+
+  qz_push_safety(st, *value1);
+  *value2 = qz_eval(st, expr2);
+  qz_pop_safety(st, 1);
+}
+
 QZ_DEF_CFUN(scm_begin);
 
 /******************************************************************************
@@ -414,20 +436,14 @@ QZ_DEF_CFUN(scm_define)
  * 6.1. Equivalence predicates
  ******************************************************************************/
 
-typedef int (*cmp_func)(qz_obj_t, qz_obj_t);
+typedef int (*cmp_fun)(qz_obj_t, qz_obj_t);
 
-static qz_obj_t inner_compare(qz_state_t* st, qz_obj_t args, cmp_func cf)
+static qz_obj_t inner_compare(qz_state_t* st, qz_obj_t args, cmp_fun cf)
 {
-  qz_obj_t expr1 = qz_required_arg(st, &args);
-  qz_obj_t expr2 = qz_required_arg(st, &args);
+  qz_obj_t result1, result2;
+  eval2(st, &args, &result1, &result2);
 
-  qz_obj_t result1 = qz_eval(st, expr1);
-
-  qz_push_safety(st, result1);
-  qz_obj_t result2 = qz_eval(st, expr2);
-  qz_pop_safety(st, 1);
-
-  int eq = cf(expr1, expr2);
+  int eq = cf(result1,result2);
 
   qz_unref(st, result1);
   qz_unref(st, result2);
@@ -584,13 +600,138 @@ QZ_DEF_CFUN(scm_num_sub)
 }
 
 /******************************************************************************
+ * 6.3. Booleans
+ ******************************************************************************/
+
+QZ_DEF_CFUN(scm_not)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+
+  if(qz_eq(value, QZ_FALSE))
+    return QZ_TRUE;
+
+  qz_unref(st, value);
+  return QZ_FALSE;
+}
+
+QZ_DEF_CFUN(scm_boolean_q)
+{
+  return inner_predicate(st, args, qz_is_bool);
+}
+
+/******************************************************************************
+ * 6.4. Pairs and lists
+ ******************************************************************************/
+
+QZ_DEF_CFUN(scm_pair_q)
+{
+  return inner_predicate(st, args, qz_is_pair);
+}
+
+QZ_DEF_CFUN(scm_cons)
+{
+  qz_obj_t result1, result2;
+  eval2(st, &args, &result1, &result2);
+
+  return qz_make_pair(result1, result2);
+}
+
+QZ_DEF_CFUN(scm_car)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+
+  if(!qz_is_pair(value)) {
+    qz_unref(st, value);
+    return qz_error(st, "expected pair");
+  }
+
+  qz_obj_t first = qz_ref(st, qz_first(value));
+  qz_unref(st, value);
+  return first;
+}
+
+QZ_DEF_CFUN(scm_cdr)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+
+  if(!qz_is_pair(value)) {
+    qz_unref(st, value);
+    return qz_error(st, "expected pair");
+  }
+
+  qz_obj_t rest = qz_ref(st, qz_rest(value));
+  qz_unref(st, value);
+  return rest;
+}
+
+QZ_DEF_CFUN(scm_set_car_b)
+{
+  qz_obj_t pair, first;
+  eval2(st, &args, &pair, &first);
+
+  if(!qz_is_pair(pair)) {
+    qz_unref(st, pair);
+    qz_unref(st, first);
+    return qz_error(st, "expected pair");
+  }
+
+  qz_cell_t* cell = qz_to_cell(pair);
+  qz_unref(st, cell->value.pair.first);
+  cell->value.pair.first = first;
+
+  qz_unref(st, pair);
+  return QZ_NIL;
+}
+
+QZ_DEF_CFUN(scm_set_cdr_b)
+{
+  qz_obj_t pair, rest;
+  eval2(st, &args, &pair, &rest);
+
+  if(!qz_is_pair(pair)) {
+    qz_unref(st, pair);
+    qz_unref(st, rest);
+    return qz_error(st, "expected pair");
+  }
+
+  qz_cell_t* cell = qz_to_cell(pair);
+  qz_unref(st, cell->value.pair.rest);
+  cell->value.pair.rest = rest;
+
+  qz_unref(st, pair);
+  return QZ_NIL;
+}
+
+QZ_DEF_CFUN(scm_null_q)
+{
+  return inner_predicate(st, args, qz_is_nil);
+}
+
+static int is_list(qz_obj_t obj)
+{
+  for(;;) {
+    if(qz_is_nil(obj))
+      return 1;
+
+    if(!qz_is_pair(obj))
+      return 0;
+
+    obj = qz_rest(obj);
+  }
+}
+
+QZ_DEF_CFUN(scm_list_q)
+{
+  return inner_predicate(st, args, is_list);
+}
+
+/******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
 
 QZ_DEF_CFUN(scm_write)
 {
-  qz_obj_t expr = qz_required_arg(st, &args);
-  qz_obj_t value = qz_eval(st, expr);
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
   qz_write(st, value, -1, stdout);
   qz_unref(st, value);
   return QZ_NIL;
@@ -622,6 +763,16 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_num_add, "+"},
   {scm_num_mul, "*"},
   {scm_num_sub, "-"},
+  {scm_not, "not"},
+  {scm_boolean_q, "boolean?"},
+  {scm_pair_q, "pair?"},
+  {scm_cons, "cons"},
+  {scm_car, "car"},
+  {scm_cdr, "cdr"},
+  {scm_set_car_b, "set-car!"},
+  {scm_set_cdr_b, "set-cdr!"},
+  {scm_null_q, "null?"},
+  {scm_list_q, "list?"},
   {scm_write, "write"},
   {NULL, NULL}
 };

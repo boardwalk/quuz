@@ -12,12 +12,13 @@
 
 /*   000 even fixnum (value is << 2)
  *   001 short immediate (see below)
- *   010 cell
+ *   010 cell (a NULL ptr indicates null, the empty list, ())
  *   011 c function
  *   100 odd fixnum (value is << 2)
  * 00001 symbol (value is << 5)
  * 01001 boolean (value is << 5)
- * 10001 character (value is << 5) */
+ * 10001 character (value is << 5)
+ * 11001 none (used internally and where undefined returns are specified) */
 
 typedef enum {
   QZ_PT_EVEN_FIXNUM = 0,
@@ -27,7 +28,8 @@ typedef enum {
   QZ_PT_ODD_FIXNUM = 4,
   QZ_PT_SYM = 1,
   QZ_PT_BOOL = 9,
-  QZ_PT_CHAR = 17
+  QZ_PT_CHAR = 17,
+  QZ_PT_NONE = 25
 } qz_pointer_tag_t;
 
 typedef enum {
@@ -128,17 +130,19 @@ typedef struct qz_named_cfun {
 /******************************************************************************
  * quuz-object.c
  ******************************************************************************/
-extern qz_obj_t const QZ_NIL;
+extern qz_obj_t const QZ_NULL;
 extern qz_obj_t const QZ_TRUE;
 extern qz_obj_t const QZ_FALSE;
+extern qz_obj_t const QZ_NONE;
 
-int qz_is_nil(qz_obj_t);
+int qz_is_null(qz_obj_t);
 int qz_is_fixnum(qz_obj_t);
 int qz_is_cell(qz_obj_t);
 int qz_is_cfun(qz_obj_t);
 int qz_is_sym(qz_obj_t);
 int qz_is_bool(qz_obj_t);
 int qz_is_char(qz_obj_t);
+int qz_is_none(qz_obj_t);
 int qz_is_pair(qz_obj_t);
 int qz_is_fun(qz_obj_t);
 int qz_is_string(qz_obj_t);

@@ -41,8 +41,8 @@ static qz_cell_t* make_hash(int capacity)
   qz_pair_t* data = QZ_CELL_DATA(cell, qz_pair_t);
 
   for(size_t i = 0; i < capacity; i++) {
-    data[i].first = QZ_NIL;
-    data[i].rest = QZ_NIL;
+    data[i].first = QZ_NONE;
+    data[i].rest = QZ_NONE;
   }
 
   return cell;
@@ -59,7 +59,7 @@ static qz_pair_t* get_hash(qz_cell_t* cell, qz_obj_t key)
   {
     size_t slot = i % cell->value.array.capacity;
 
-    if(qz_is_nil(data[slot].first) || qz_equal(data[slot].first, key))
+    if(qz_is_none(data[slot].first) || qz_equal(data[slot].first, key))
       return &data[slot];
   }
 }
@@ -81,7 +81,7 @@ static void realloc_hash(qz_obj_t* obj)
   {
     qz_pair_t* pair = QZ_CELL_DATA(cell, qz_pair_t) + i;
 
-    if(qz_is_nil(pair->first) || qz_is_nil(pair->rest))
+    if(qz_is_none(pair->first) || qz_is_none(pair->rest))
       continue;
 
     qz_pair_t* new_pair = get_hash(new_cell, pair->first);
@@ -103,7 +103,7 @@ qz_obj_t* qz_hash_get(qz_state_t* st, qz_obj_t obj, qz_obj_t key)
 {
   qz_pair_t* pair = get_hash(qz_to_cell(obj), key);
 
-  if(qz_is_nil(pair->rest))
+  if(qz_is_none(pair->first))
     return NULL;
 
   return &pair->rest;
@@ -114,7 +114,7 @@ void qz_hash_set(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value)
   qz_cell_t* cell = qz_to_cell(*obj);
   qz_pair_t* pair = get_hash(cell, key);
 
-  if(qz_is_nil(pair->first))
+  if(qz_is_none(pair->first))
     cell->value.array.size++;
 
   qz_unref(st, pair->first);

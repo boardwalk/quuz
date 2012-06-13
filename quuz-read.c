@@ -98,33 +98,27 @@ static void append(qz_obj_t value_obj)
   printf("  stack obj: "); qz_write(*obj, -1, stdout); fputc('\n', stdout);
   printf("  value obj: "); qz_write(value_obj, -1, stdout); fputc('\n', stdout);*/
 
-  if(qz_is_pair(*obj))
+  if(qz_is_null(*obj))
+  {
+    /* parsing is the only place a null is promoted to a pair */
+    *obj = qz_make_pair(value_obj, QZ_NULL);
+  }
+  else if(qz_is_pair(*obj))
   {
     qz_pair_t* pair = qz_to_pair(*obj);
 
-    /* walk list looking for a nil slot */
-    for(;;) {
-      if(qz_is_nil(pair->first)) {
-        /* first unused */
-        pair->first = value_obj;
-        break;
-      }
-
-      if(qz_is_nil(pair->rest)) {
-        /* rest unused */
-        if(g_dotted_datum) {
-          g_dotted_datum = 0;
-          /* append directly */
-          pair->rest = value_obj;
-        }
-        else {
-          /* wrap in another cell and append */
-          pair->rest = qz_make_pair(value_obj, QZ_NIL);
-        }
-        break;
-      }
-
+    /* walk to the end of the list */
+    while(!qz_is_null(pair->rest))
       pair = qz_to_pair(pair->rest);
+
+    if(g_dotted_datum) {
+      g_dotted_datum = 0;
+      /* append directly */
+      pair->rest = value_obj;
+    }
+    else {
+      /* wrap in another cell and append */
+      pair->rest = qz_make_pair(value_obj, QZ_NULL);
     }
   }
   else if(qz_is_vector(*obj))
@@ -198,7 +192,7 @@ static void push_pair(void)
 {
   /*printf("push_pair()\n");*/
 
-  push(qz_make_pair(QZ_NIL, QZ_NIL));
+  push(QZ_NULL);
 }
 
 /* push a vector onto the stack */
@@ -269,24 +263,24 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp)
   g_st = st;
   g_fp = fp;
 
-  /* setup stack with root cell */
+  /* setup stack with empty list */
   g_stack = make_array(QZ_CT_VECTOR, sizeof(qz_obj_t));
-
-  qz_obj_t root = qz_make_pair(QZ_NIL, QZ_NIL);
-  push(root);
+  push(QZ_NULL);
 
   /* parse file */
   yyparse();
 
   /* grab result */
-  qz_obj_t result = qz_ref(st, qz_list_head(root));
+  qz_obj_t stack_top = qz_vector_head(g_stack);
+  qz_obj_t result = QZ_NONE;
+  if(qz_is_cell(stack_top) && !qz_is_null(stack_top))
+    result = qz_ref(st, qz_list_head(stack_top));
 
   /* cleanup */
   qz_unref(st, g_stack);
-  g_stack = QZ_NIL;
+  g_stack = QZ_NONE;
   g_st = NULL;
   g_fp = NULL;
 
   return result;
 }
-

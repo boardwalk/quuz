@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
   for(;;) {
     qz_obj_t obj = qz_read(st, fp);
 
-    if(qz_is_nil(obj))
+    if(qz_is_none(obj))
       break;
 
     if(mode == PARSE)
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
     else if(mode == EVAL)
     {
       qz_obj_t result = qz_peval(st, obj);
-      if(!qz_is_nil(result))
+      if(!qz_is_none(result))
       {
         qz_write(st, result, -1, stdout);
         qz_unref(st, result);

@@ -4,9 +4,10 @@
 #include <string.h>
 #include <limits.h>
 
-qz_obj_t const QZ_NIL = { (size_t)NULL | QZ_PT_CELL };
-qz_obj_t const QZ_TRUE = { (1 << 5) | QZ_PT_BOOL };
-qz_obj_t const QZ_FALSE = { (0 << 5) | QZ_PT_BOOL };
+const qz_obj_t QZ_NULL = { (size_t)NULL | QZ_PT_CELL };
+const qz_obj_t QZ_TRUE = { (1 << 5) | QZ_PT_BOOL };
+const qz_obj_t QZ_FALSE = { (0 << 5) | QZ_PT_BOOL };
+const qz_obj_t QZ_NONE = { QZ_PT_NONE };
 
 /* qz_is_<type> */
 static int cell_of_type(qz_obj_t obj, qz_cell_type_t type) {
@@ -16,8 +17,8 @@ static int cell_of_type(qz_obj_t obj, qz_cell_type_t type) {
   }
   return 0;
 }
-int qz_is_nil(qz_obj_t obj) {
-  return obj.value == QZ_NIL.value;
+int qz_is_null(qz_obj_t obj) {
+  return obj.value == QZ_NULL.value;
 }
 int qz_is_fixnum(qz_obj_t obj) {
   return (obj.value & 3) == 0;
@@ -36,6 +37,9 @@ int qz_is_bool(qz_obj_t obj) {
 }
 int qz_is_char(qz_obj_t obj) {
   return (obj.value & 31) == QZ_PT_CHAR;
+}
+int qz_is_none(qz_obj_t obj) {
+  return obj.value == QZ_NONE.value;
 }
 int qz_is_pair(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_PAIR);
@@ -228,7 +232,7 @@ qz_obj_t qz_required_arg(qz_state_t* st, qz_obj_t* obj)
 qz_obj_t qz_optional_arg(qz_state_t* st, qz_obj_t* obj)
 {
   if(!qz_is_pair(*obj))
-    return QZ_NIL;
+    return QZ_NONE;
   qz_pair_t* pair = qz_to_pair(*obj);
   *obj = pair->rest;
   return pair->first;
@@ -245,7 +249,7 @@ qz_obj_t* qz_list_tail_ptr(qz_obj_t obj)
 {
   assert(qz_is_pair(obj));
   qz_cell_t* cell = qz_to_cell(obj);
-  while(!qz_is_nil(cell->value.pair.rest))
+  while(!qz_is_null(cell->value.pair.rest))
     cell = qz_to_cell(cell->value.pair.rest);
   return &cell->value.pair.first;
 }

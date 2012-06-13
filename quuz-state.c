@@ -12,7 +12,7 @@ qz_state_t* qz_alloc(void)
   st->root_buffer_size = 0;
   st->safety_buffer_size = 0;
   qz_obj_t toplevel = qz_make_hash();
-  st->env = qz_make_pair(qz_make_pair(toplevel, QZ_NIL), QZ_NIL);
+  st->env = qz_make_pair(qz_make_pair(toplevel, QZ_NULL), QZ_NULL);
   /*fprintf(stderr, "toplevel = %p\n", (void*)qz_to_cell(toplevel));*/
   st->name_sym = qz_make_hash();
   /*fprintf(stderr, "name_sym = %p\n", (void*)qz_to_cell(st->name_sym));*/
@@ -79,8 +79,8 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 
     st->safety_buffer_size = old_safety_buffer_size;
 
-    /* return nil! */
-    result = QZ_NIL;
+    /* return none! */
+    result = QZ_NONE;
   }
   else
   {
@@ -114,7 +114,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
       for(;;) {
         qz_obj_t param = qz_optional_arg(st, &formals);
 
-        if(qz_is_nil(param))
+        if(qz_is_none(param))
           break; /* ran out of params */
 
         qz_push_safety(st, frame);
@@ -174,7 +174,7 @@ qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym)
     if(slot)
       return slot;
 
-    if(qz_is_nil(scope->rest))
+    if(qz_is_null(scope->rest))
       return NULL;
 
     scope = qz_to_pair(scope->rest);

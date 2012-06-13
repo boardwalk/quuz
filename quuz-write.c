@@ -76,12 +76,9 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
       depth--;
       for(;;)
       {
-        if(qz_is_nil(pair->first)) /* this shouldn't happen? */
-          break;
-
         inner_write(st, pair->first, depth, fp, need_space);
 
-        if(qz_is_nil(pair->rest))
+        if(qz_is_null(pair->rest))
           break;
 
         if(!qz_is_pair(pair->rest))
@@ -198,7 +195,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
       for(size_t i = 0; i < cell->value.array.capacity; i++)
       {
         qz_pair_t* pair = QZ_CELL_DATA(cell, qz_pair_t) + i;
-        if(qz_is_nil(pair->first))
+        if(qz_is_none(pair->first))
           continue;
 
         if(first_pair) {

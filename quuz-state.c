@@ -161,6 +161,9 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     return qz_ref(st, *slot);
   }
 
+  if(qz_is_null(obj))
+    return qz_error(st, "cannot evaluate null");
+
   return qz_ref(st, obj);
 }
 

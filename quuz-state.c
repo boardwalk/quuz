@@ -69,7 +69,7 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
     {
       qz_obj_t safety_obj = st->safety_buffer[i];
 
-      if(qz_eqv(safety_obj, st->env))
+      if(qz_eq(safety_obj, st->env))
         st->env = qz_rest(st->env); /* pop environment */
 
       qz_unref(st, safety_obj);

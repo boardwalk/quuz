@@ -50,7 +50,7 @@ QZ_DEF_CFUN(scm_if)
 
   qz_obj_t test_result = qz_eval(st, test);
 
-  if(qz_eqv(test_result, QZ_FALSE))
+  if(qz_eq(test_result, QZ_FALSE))
     return qz_eval(st, alternate); /* covers no alternate, nil evals to nil */
 
   qz_unref(st, test_result);
@@ -96,13 +96,13 @@ QZ_DEF_CFUN(scm_cond)
 
     qz_obj_t test = qz_required_arg(st, &clause);
 
-    if(qz_eqv(test, st->else_sym))
+    if(qz_eq(test, st->else_sym))
       break; /* hit else clause */
 
     /* no need to unref previous result, it must be nil or false */
     result = qz_eval(st, test);
 
-    if(!qz_eqv(result, QZ_FALSE))
+    if(!qz_eq(result, QZ_FALSE))
       break; /* hit true clause */
   }
 
@@ -111,7 +111,7 @@ QZ_DEF_CFUN(scm_cond)
   if(qz_is_nil(expr))
     return result; /* clause with only test */
 
-  if(qz_eqv(expr, st->arrow_sym)) {
+  if(qz_eq(expr, st->arrow_sym)) {
     /* get function */
     qz_push_safety(st, result);
     qz_obj_t fun = qz_required_arg(st, &clause);
@@ -149,7 +149,7 @@ QZ_DEF_CFUN(scm_case)
     if(qz_is_nil(clause))
       break; /* ran out of clauses */
 
-    if(qz_eqv(clause, st->else_sym))
+    if(qz_eq(clause, st->else_sym))
       break; /* hit else clause */
 
     qz_obj_t datum_list = qz_required_arg(st, &clause);
@@ -178,7 +178,7 @@ QZ_DEF_CFUN(scm_case)
   /* eval expressions in clause */
   qz_obj_t expr = qz_optional_arg(st, &clause);
 
-  if(qz_eqv(expr, st->arrow_sym)) {
+  if(qz_eq(expr, st->arrow_sym)) {
     /* get function */
     qz_push_safety(st, result);
     qz_obj_t fun = qz_required_arg(st, &clause);
@@ -217,7 +217,7 @@ QZ_DEF_CFUN(scm_and)
     qz_unref(st, result); /* from previous test */
     result = qz_eval(st, test);
 
-    if(qz_eqv(result, QZ_FALSE))
+    if(qz_eq(result, QZ_FALSE))
       return QZ_FALSE; /* not all expressions true */
   }
 }
@@ -233,7 +233,7 @@ QZ_DEF_CFUN(scm_or)
 
     qz_obj_t result = qz_eval(st, test);
 
-    if(!qz_eqv(result, QZ_FALSE))
+    if(!qz_eq(result, QZ_FALSE))
       return result; /* not all expressions false */
   }
 }
@@ -243,7 +243,7 @@ QZ_DEF_CFUN(scm_when)
   qz_obj_t test = qz_required_arg(st, &args);
   qz_obj_t result = qz_eval(st, test);
 
-  if(qz_eqv(result, QZ_FALSE))
+  if(qz_eq(result, QZ_FALSE))
     return QZ_NIL; /* test was false */
 
   qz_unref(st, result);
@@ -259,7 +259,7 @@ QZ_DEF_CFUN(scm_unless)
   qz_obj_t test = qz_required_arg(st, &args);
   qz_obj_t result = qz_eval(st, test);
 
-  if(!qz_eqv(result, QZ_FALSE)) {
+  if(!qz_eq(result, QZ_FALSE)) {
     qz_unref(st, result);
     return QZ_NIL; /* test was true */
   }
@@ -427,7 +427,7 @@ static qz_obj_t inner_compare(qz_state_t* st, qz_obj_t args, cmp_func cf)
   qz_obj_t result2 = qz_eval(st, expr2);
   qz_pop_safety(st, 1);
 
-  int eq = qz_eqv(expr1, expr2);
+  int eq = cf(expr1, expr2);
 
   qz_unref(st, result1);
   qz_unref(st, result2);

@@ -725,7 +725,7 @@ QZ_DEF_CFUN(scm_list_q)
 QZ_DEF_CFUN(scm_make_list)
 {
   qz_obj_t k = qz_eval(st, qz_required_arg(st, &args));
-  qz_obj_t fill = qz_eval(st, qz_optional_arg(st, &args)); /* null evals to null */
+  qz_obj_t fill = qz_eval(st, qz_optional_arg(st, &args)); /* none evals to none */
 
   if(!qz_is_fixnum(k)) {
     qz_unref(st, k);
@@ -765,6 +765,105 @@ QZ_DEF_CFUN(scm_list)
     qz_to_cell(result)->value.pair.rest = inner_result;
     result = inner_result;
   }
+}
+
+QZ_DEF_CFUN(scm_length)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+
+  intptr_t len = 0;
+  for(;;) {
+    if(qz_is_null(value))
+      return qz_from_fixnum(len);
+
+    if(!qz_is_pair(value))
+      return qz_error(st, "expected list");
+
+    len++;
+    value = qz_rest(value);
+  }
+}
+
+/* TODO append */
+
+QZ_DEF_CFUN(scm_reverse)
+{
+  qz_obj_t list = qz_eval(st, qz_required_arg(st, &args));
+  qz_obj_t result = QZ_NULL;
+
+  qz_obj_t elem = list;
+  for(;;) {
+    if(qz_is_null(elem)) {
+      qz_unref(st, list);
+      return result;
+    }
+
+    if(!qz_is_pair(elem)) {
+      qz_unref(st, list);
+      qz_unref(st, result);
+      return qz_error(st, "expected list");
+    }
+
+    result = qz_make_pair(qz_first(elem), result);
+    elem = qz_rest(elem);
+  }
+}
+
+QZ_DEF_CFUN(scm_list_tail)
+{
+  qz_obj_t list, k;
+  eval2(st, &args, &list, &k);
+
+  if(!qz_is_fixnum(k)) {
+    qz_unref(st, list);
+    qz_unref(st, k);
+    return qz_error(st, "expected fixnum");
+  }
+
+  qz_obj_t elem = list;
+  for(intptr_t i = qz_to_fixnum(k); i > 0; i--)
+  {
+    if(qz_is_null(elem)) {
+      qz_unref(st, list);
+      return qz_error(st, "list too short");
+    }
+
+    if(!qz_is_pair(elem)) {
+      qz_unref(st, list);
+      return qz_error(st, "expected list");
+    }
+
+    elem = qz_rest(elem);
+  }
+
+  qz_ref(st, elem);
+  qz_unref(st, list);
+  return elem;
+}
+
+QZ_DEF_CFUN(scm_list_ref)
+{
+  return qz_first(scm_list_tail(st, args));
+}
+
+QZ_DEF_CFUN(scm_list_set_b)
+{
+  qz_obj_t elem = scm_list_tail(st, args);
+
+  qz_push_safety(st, elem);
+
+  if(!qz_is_pair(elem))
+    return qz_error(st, "expected list");
+
+  qz_obj_t obj = qz_eval(st, qz_required_arg(st, &args));
+
+  qz_pop_safety(st, 1);
+
+  qz_pair_t* pair = qz_to_pair(elem);
+  qz_unref(st, pair->first);
+  pair->first = obj;
+
+  return QZ_NONE;
 }
 
 /******************************************************************************
@@ -817,6 +916,11 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_list_q, "list?"},
   {scm_make_list, "make-list"},
   {scm_list, "list"},
+  {scm_length, "length"},
+  {scm_reverse, "reverse"},
+  {scm_list_tail, "list-tail"},
+  {scm_list_ref, "list-ref"},
+  {scm_list_set_b, "list-set!"},
   {scm_write, "write"},
   {NULL, NULL}
 };

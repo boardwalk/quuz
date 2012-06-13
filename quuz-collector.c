@@ -52,6 +52,7 @@ static void all_children(qz_state_t* st, qz_cell_t* cell, child_func func)
   }
 }
 
+void qz_collect(qz_state_t* st);
 static void mark_gray(qz_state_t* st, qz_cell_t* cell);
 static void scan_black(qz_state_t* st, qz_cell_t* cell);
 static void release(qz_state_t* st, qz_cell_t* cell);

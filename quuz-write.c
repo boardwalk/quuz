@@ -309,9 +309,6 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
   }
 }
 
-/* writes a qz_obj_t to a file stream in Scheme form
- * when depth < 0, the entire tree will be printed and readable by qz_read
- * when depth >= 0, the tree will only be printed to that depth */
 void qz_write(qz_state_t* st, qz_obj_t o, int depth, FILE* fp)
 {
   int need_space = 0;

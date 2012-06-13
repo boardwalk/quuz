@@ -264,7 +264,6 @@ static void append_sym(const char* s)
 #define YYSTYPE intptr_t
 #include "parser.c"
 
-/* scheme's read procedure */
 qz_obj_t qz_read(qz_state_t* st, FILE* fp)
 {
   g_st = st;

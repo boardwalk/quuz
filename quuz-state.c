@@ -4,6 +4,8 @@
 
 extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[]; /* quuz-lib.c */
 
+void qz_collect(qz_state_t* st); /* quuz-collector.c */
+
 qz_state_t* qz_alloc(void)
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));

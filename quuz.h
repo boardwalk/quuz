@@ -201,8 +201,13 @@ qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj);
 qz_obj_t qz_vector_head(qz_obj_t obj);
 qz_obj_t qz_vector_tail(qz_obj_t obj);
 
+/* scheme's eq? procedure */
 int qz_eq(qz_obj_t a, qz_obj_t b);
+
+/* scheme's eqv? procedure */
 int qz_eqv(qz_obj_t a, qz_obj_t b);
+
+/* scheme's equal? procedure */
 int qz_equal(qz_obj_t a, qz_obj_t b);
 
 /******************************************************************************
@@ -212,7 +217,7 @@ int qz_equal(qz_obj_t a, qz_obj_t b);
 /* create a new hash */
 qz_obj_t qz_make_hash(void);
 
-/* retrieve a pointer to a slot in the hash object contain the value for a key
+/* retrieve a pointer to a slot in the hash object with the value for key
  * returns NULL if not found */
 qz_obj_t* qz_hash_get(qz_state_t* st, qz_obj_t obj, qz_obj_t key);
 
@@ -256,18 +261,27 @@ void qz_pop_safety(qz_state_t* st, size_t nobj);
 /******************************************************************************
  * quuz-read.c
  ******************************************************************************/
+
+/* scheme's read procedure */
 qz_obj_t qz_read(qz_state_t* st, FILE* fp);
 
 /******************************************************************************
  * quuz-write.c
  ******************************************************************************/
+
+/* scheme's write procedure 
+ * when depth < 0, the entire tree will be printed and readable by qz_read
+ * when depth >= 0, the tree will only be printed to that depth */
 void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);
 
 /******************************************************************************
  * quuz-collector.c
  ******************************************************************************/
+
+/* add one reference to an object */
 qz_obj_t qz_ref(qz_state_t* st, qz_obj_t obj);
+
+/* remove one reference from an object */
 void qz_unref(qz_state_t* st, qz_obj_t obj);
-void qz_collect(qz_state_t* st);
 
 #endif /* QUUZ_QUUZ_H */

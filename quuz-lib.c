@@ -357,7 +357,7 @@ QZ_DEF_CFUN(scm_let_s)
     if(!qz_is_sym(sym))
       qz_error(st, "expected symbol");
 
-    qz_hash_set(st, &qz_to_cell(env)->value.pair.first, sym, qz_eval(st, expr));
+    qz_hash_set(st, &qz_to_pair(env)->first, sym, qz_eval(st, expr));
   }
 
   /* execute body */
@@ -672,9 +672,9 @@ QZ_DEF_CFUN(scm_set_car_b)
     return qz_error(st, "expected pair");
   }
 
-  qz_cell_t* cell = qz_to_cell(pair);
-  qz_unref(st, cell->value.pair.first);
-  cell->value.pair.first = first;
+  qz_pair_t* pair_raw = qz_to_pair(pair);
+  qz_unref(st, pair_raw->first);
+  pair_raw->first = first;
 
   qz_unref(st, pair);
   return QZ_NONE;
@@ -691,9 +691,9 @@ QZ_DEF_CFUN(scm_set_cdr_b)
     return qz_error(st, "expected pair");
   }
 
-  qz_cell_t* cell = qz_to_cell(pair);
-  qz_unref(st, cell->value.pair.rest);
-  cell->value.pair.rest = rest;
+  qz_pair_t* pair_raw = qz_to_pair(pair);
+  qz_unref(st, pair_raw->rest);
+  pair_raw->rest = rest;
 
   qz_unref(st, pair);
   return QZ_NONE;
@@ -762,7 +762,7 @@ QZ_DEF_CFUN(scm_list)
     qz_pop_safety(st, 1);
 
     qz_obj_t inner_result = qz_make_pair(value, QZ_NULL);
-    qz_to_cell(result)->value.pair.rest = inner_result;
+    qz_to_pair(result)->rest = inner_result;
     result = inner_result;
   }
 }

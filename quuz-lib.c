@@ -914,6 +914,35 @@ QZ_DEF_CFUN(scm_member)
   return inner_member(st, args, qz_equal);
 }
 
+static qz_obj_t inner_assoc(qz_state_t* st, qz_obj_t args, cmp_fun cf)
+{
+  qz_obj_t obj = inner_member(st, args, cf);
+
+  if(qz_eq(obj, QZ_FALSE))
+    return QZ_FALSE;
+
+  qz_obj_t result = qz_ref(st, qz_first(obj));
+  qz_unref(st, obj);
+
+  return result;
+}
+
+QZ_DEF_CFUN(scm_assq)
+{
+  return inner_assoc(st, args, qz_eq);
+}
+
+QZ_DEF_CFUN(scm_assv)
+{
+  return inner_assoc(st, args, qz_eqv);
+}
+
+QZ_DEF_CFUN(scm_assoc)
+{
+  /* TODO support custom comparison function */
+  return inner_assoc(st, args, qz_equal);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -972,6 +1001,9 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_memq, "memq"},
   {scm_memv, "memv"},
   {scm_member, "member"},
+  {scm_assq, "assq"},
+  {scm_assv, "assv"},
+  {scm_assoc, "assoc"},
   {scm_write, "write"},
   {NULL, NULL}
 };

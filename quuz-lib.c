@@ -866,6 +866,54 @@ QZ_DEF_CFUN(scm_list_set_b)
   return QZ_NONE;
 }
 
+static qz_obj_t inner_member(qz_state_t* st, qz_obj_t args, cmp_fun cf)
+{
+  qz_obj_t obj, list;
+  eval2(st, &args, &obj, &list);
+
+  qz_push_safety(st, obj);
+  qz_push_safety(st, list);
+
+  qz_obj_t elem = list;
+  qz_obj_t result = QZ_FALSE;
+  for(;;) {
+    if(qz_is_null(result))
+      break;
+
+    if(!qz_is_pair(elem))
+      return qz_error(st, "expected list");
+
+    if(cf(qz_first(elem), obj)) {
+      result = qz_ref(st, elem);
+      break;
+    }
+
+    elem = qz_rest(elem);
+  }
+
+  qz_pop_safety(st, 2);
+  qz_unref(st, obj);
+  qz_unref(st, list);
+
+  return result;
+}
+
+QZ_DEF_CFUN(scm_memq)
+{
+  return inner_member(st, args, qz_eq);
+}
+
+QZ_DEF_CFUN(scm_memv)
+{
+  return inner_member(st, args, qz_eqv);
+}
+
+QZ_DEF_CFUN(scm_member)
+{
+  /* TODO support custom comparison function */
+  return inner_member(st, args, qz_equal);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -921,6 +969,9 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_list_tail, "list-tail"},
   {scm_list_ref, "list-ref"},
   {scm_list_set_b, "list-set!"},
+  {scm_memq, "memq"},
+  {scm_memv, "memv"},
+  {scm_member, "member"},
   {scm_write, "write"},
   {NULL, NULL}
 };

@@ -1,4 +1,5 @@
 #include "quuz.h"
+#include <assert.h>
 
 #define ALIGNED __attribute__ ((aligned (8)))
 #define QZ_DEF_CFUN(n) static ALIGNED qz_obj_t n(qz_state_t* st, qz_obj_t args)
@@ -972,6 +973,42 @@ QZ_DEF_CFUN(scm_list_copy)
 }
 
 /******************************************************************************
+ * 6.5. Symbols
+ ******************************************************************************/
+
+QZ_DEF_CFUN(scm_symbol_q)
+{
+  return inner_predicate(st, args, qz_is_sym);
+}
+
+QZ_DEF_CFUN(scm_symbol_a_string)
+{
+  qz_obj_t sym = qz_eval(st, qz_required_arg(st, &args));
+
+  if(!qz_is_sym(sym)) {
+    qz_unref(st, sym);
+    return qz_error(st, "expected symbol");
+  }
+
+  qz_obj_t* str = qz_hash_get(st, st->sym_name, sym);
+  assert(str && qz_is_string(*str));
+
+  return qz_ref(st, *str);
+}
+
+QZ_DEF_CFUN(scm_string_a_symbol)
+{
+  qz_obj_t str = qz_eval(st, qz_required_arg(st, &args));
+
+  if(!qz_is_string(str)) {
+    qz_unref(st, str);
+    return qz_error(st, "expected string");
+  }
+
+  return qz_make_sym(st, str);
+}
+
+/******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
 
@@ -1033,6 +1070,9 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_assv, "assv"},
   {scm_assoc, "assoc"},
   {scm_list_copy, "list-copy"},
+  {scm_symbol_q, "symbol?"},
+  {scm_symbol_a_string, "symbol->string"},
+  {scm_string_a_symbol, "string->symbol"},
   {scm_write, "write"},
   {NULL, NULL}
 };

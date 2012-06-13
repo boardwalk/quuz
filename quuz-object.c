@@ -272,6 +272,12 @@ qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj)
 qz_obj_t qz_vector_head(qz_obj_t obj) { return *qz_vector_head_ptr(obj); }
 qz_obj_t qz_vector_tail(qz_obj_t obj) { return *qz_vector_tail_ptr(obj); }
 
+/* scheme's eq? procedure */
+int qz_eq(qz_obj_t a, qz_obj_t b)
+{
+  return a.value == b.value;
+}
+
 /* scheme's eqv? procedure */
 int qz_eqv(qz_obj_t a, qz_obj_t b)
 {

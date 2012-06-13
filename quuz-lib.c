@@ -411,6 +411,46 @@ QZ_DEF_CFUN(scm_define)
 }
 
 /******************************************************************************
+ * 6.1. Equivalence predicates
+ ******************************************************************************/
+
+typedef int (*cmp_func)(qz_obj_t, qz_obj_t);
+
+static qz_obj_t inner_compare(qz_state_t* st, qz_obj_t args, cmp_func cf)
+{
+  qz_obj_t expr1 = qz_required_arg(st, &args);
+  qz_obj_t expr2 = qz_required_arg(st, &args);
+
+  qz_obj_t result1 = qz_eval(st, expr1);
+
+  qz_push_safety(st, result1);
+  qz_obj_t result2 = qz_eval(st, expr2);
+  qz_pop_safety(st, 1);
+
+  int eq = qz_eqv(expr1, expr2);
+
+  qz_unref(st, result1);
+  qz_unref(st, result2);
+
+  return eq ? QZ_TRUE : QZ_FALSE;
+}
+
+QZ_DEF_CFUN(scm_eq_q)
+{
+  return inner_compare(st, args, qz_eq);
+}
+
+QZ_DEF_CFUN(scm_eqv_q)
+{
+  return inner_compare(st, args, qz_eqv);
+}
+
+QZ_DEF_CFUN(scm_equal_q)
+{
+  return inner_compare(st, args, qz_equal);
+}
+
+/******************************************************************************
  * 6.2. Numbers
  ******************************************************************************/
 
@@ -424,7 +464,7 @@ static int sign_of(int i)
   return 2 + 2*(i > 0) - (i < 0);
 }
 
-static qz_obj_t inner_compare(qz_state_t* st, qz_obj_t args, int flags)
+static qz_obj_t inner_num_compare(qz_state_t* st, qz_obj_t args, int flags)
 {
   qz_obj_t prev = qz_eval(st, qz_required_arg(st, &args));
 
@@ -449,27 +489,27 @@ static qz_obj_t inner_compare(qz_state_t* st, qz_obj_t args, int flags)
 
 QZ_DEF_CFUN(scm_num_eq)
 {
-  return inner_compare(st, args, EQUAL);
+  return inner_num_compare(st, args, EQUAL);
 }
 
 QZ_DEF_CFUN(scm_num_lt)
 {
-  return inner_compare(st, args, LESS);
+  return inner_num_compare(st, args, LESS);
 }
 
 QZ_DEF_CFUN(scm_num_gt)
 {
-  return inner_compare(st, args, GREATER);
+  return inner_num_compare(st, args, GREATER);
 }
 
 QZ_DEF_CFUN(scm_num_lte)
 {
-  return inner_compare(st, args, LESS|EQUAL);
+  return inner_num_compare(st, args, LESS|EQUAL);
 }
 
 QZ_DEF_CFUN(scm_num_gte)
 {
-  return inner_compare(st, args, GREATER|EQUAL);
+  return inner_num_compare(st, args, GREATER|EQUAL);
 }
 
 QZ_DEF_CFUN(scm_num_add)
@@ -571,6 +611,9 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_let_s, "let*"},
   {scm_begin, "begin"},
   {scm_define, "define"},
+  {scm_eq_q, "eq?"},
+  {scm_eqv_q, "eqv?"},
+  {scm_equal_q, "equal?"},
   {scm_num_eq, "="},
   {scm_num_lt, "<"},
   {scm_num_gt, ">"},

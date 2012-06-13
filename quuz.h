@@ -201,6 +201,7 @@ qz_obj_t* qz_vector_tail_ptr(qz_obj_t obj);
 qz_obj_t qz_vector_head(qz_obj_t obj);
 qz_obj_t qz_vector_tail(qz_obj_t obj);
 
+int qz_eq(qz_obj_t a, qz_obj_t b);
 int qz_eqv(qz_obj_t a, qz_obj_t b);
 int qz_equal(qz_obj_t a, qz_obj_t b);
 

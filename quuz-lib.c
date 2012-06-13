@@ -943,6 +943,34 @@ QZ_DEF_CFUN(scm_assoc)
   return inner_assoc(st, args, qz_equal);
 }
 
+QZ_DEF_CFUN(scm_list_copy)
+{
+  qz_obj_t list = qz_eval(st, qz_required_arg(st, &args));
+  qz_push_safety(st, list);
+
+  qz_obj_t elem = list;
+  qz_obj_t result = QZ_NULL;
+
+  for(;;) {
+    if(qz_is_null(elem)) {
+      qz_pop_safety(st, 1);
+      qz_unref(st, list);
+      return result; /* ran out of elements */
+    }
+
+    if(!qz_is_pair(elem))
+      return qz_error(st, "expected list");
+
+    qz_obj_t inner_result = qz_make_pair(qz_ref(st, qz_first(elem)), QZ_NULL);
+
+    if(!qz_is_null(result))
+      qz_to_pair(result)->rest = inner_result;
+
+    result = inner_result;
+    elem = qz_rest(elem);
+  }
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1004,6 +1032,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_assq, "assq"},
   {scm_assv, "assv"},
   {scm_assoc, "assoc"},
+  {scm_list_copy, "list-copy"},
   {scm_write, "write"},
   {NULL, NULL}
 };

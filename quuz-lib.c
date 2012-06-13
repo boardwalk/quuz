@@ -725,6 +725,27 @@ QZ_DEF_CFUN(scm_list_q)
   return inner_predicate(st, args, is_list);
 }
 
+QZ_DEF_CFUN(scm_make_list)
+{
+  qz_obj_t k = qz_eval(st, qz_required_arg(st, &args));
+  qz_obj_t fill = qz_eval(st, qz_optional_arg(st, &args)); /* nil evals to nil */
+
+  if(!qz_is_fixnum(k)) {
+    qz_unref(st, k);
+    qz_unref(st, fill);
+    return qz_error(st, "expected fixnum");
+  }
+
+  qz_obj_t result = QZ_NIL;
+
+  for(intptr_t i = qz_to_fixnum(k); i > 0; i--)
+    result = qz_make_pair(qz_ref(st, fill), result);
+
+  qz_unref(st, fill);
+
+  return result;
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -773,6 +794,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_set_cdr_b, "set-cdr!"},
   {scm_null_q, "null?"},
   {scm_list_q, "list?"},
+  {scm_make_list, "make-list"},
   {scm_write, "write"},
   {NULL, NULL}
 };

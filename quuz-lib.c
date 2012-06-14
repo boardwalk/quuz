@@ -1,6 +1,7 @@
 #include "quuz.h"
 #include <assert.h>
 #include <ctype.h>
+#include <string.h>
 
 #define ALIGNED __attribute__ ((aligned (8)))
 #define QZ_DEF_CFUN(n) static ALIGNED qz_obj_t n(qz_state_t* st, qz_obj_t args)
@@ -1189,6 +1190,57 @@ QZ_DEF_CFUN(scm_integer_a_char)
 }
 
 /******************************************************************************
+ * 6.7. Strings
+ ******************************************************************************/
+
+QZ_DEF_CFUN(scm_string_q)
+{
+  return inner_predicate(st, args, qz_is_string);
+}
+
+QZ_DEF_CFUN(scm_make_string)
+{
+  qz_obj_t k = qz_eval(st, qz_required_arg(st, &args));
+  qz_obj_t ch = qz_eval(st, qz_optional_arg(st, &args));
+
+  if(!qz_is_fixnum(k)) {
+    qz_unref(st, k);
+    qz_unref(st, ch);
+    return qz_error(st, "expected fixnum");
+  }
+
+  if(!qz_is_none(ch) && !qz_is_char(ch)) {
+    qz_unref(st, k);
+    qz_unref(st, ch);
+    return qz_error(st, "expected character");
+  }
+
+  intptr_t k_raw = qz_to_fixnum(k);
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, k_raw*sizeof(char));
+  cell->value.array.size = k_raw;
+  cell->value.array.capacity = k_raw;
+
+  if(!qz_is_none(ch))
+    memset(QZ_CELL_DATA(cell, char), qz_to_char(ch), k_raw*sizeof(char));
+
+  return qz_from_cell(cell);
+}
+
+/* TODO string */
+
+QZ_DEF_CFUN(scm_string_length)
+{
+  qz_obj_t str = qz_eval(st, qz_required_arg(st, &args));
+  if(!qz_is_string(str)) {
+    qz_unref(st, str);
+    return qz_error(st, "expected string");
+  }
+
+  return qz_from_fixnum(qz_to_cell(str)->value.array.size);
+}
+
+/******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
 
@@ -1272,7 +1324,9 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_digit_value, "digit-value"},
   {scm_char_a_integer, "char->integer"},
   {scm_integer_a_char, "integer->char"},
+  {scm_string_q, "string?"},
+  {scm_make_string, "make-string"},
+  {scm_string_length, "string-length"},
   {scm_write, "write"},
   {NULL, NULL}
 };
-

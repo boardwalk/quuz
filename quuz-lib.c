@@ -1157,6 +1157,37 @@ QZ_DEF_CFUN(scm_char_lower_case_q)
   return inner_char_predicate(st, args, islower);
 }
 
+QZ_DEF_CFUN(scm_digit_value)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  if(!qz_is_char(value)) {
+    qz_unref(st, value);
+    return QZ_FALSE;
+  }
+  char ch = qz_to_char(value);
+  return isdigit(ch) ? qz_from_fixnum(ch - '0') : QZ_FALSE;
+}
+
+QZ_DEF_CFUN(scm_char_a_integer)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  if(!qz_is_char(value)) {
+    qz_unref(st, value);
+    return qz_error(st, "expected character");
+  }
+  return qz_from_fixnum(qz_to_char(value));
+}
+
+QZ_DEF_CFUN(scm_integer_a_char)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  if(!qz_is_fixnum(value)) {
+    qz_unref(st, value);
+    return qz_error(st, "expected fixnum");
+  }
+  return qz_from_char(qz_to_fixnum(value));
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1238,6 +1269,9 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_char_whitespace_q, "char-whitespace?"},
   {scm_char_upper_case_q, "char-upper-case?"},
   {scm_char_lower_case_q, "char-lower-case?"},
+  {scm_digit_value, "digit-value"},
+  {scm_char_a_integer, "char->integer"},
+  {scm_integer_a_char, "integer->char"},
   {scm_write, "write"},
   {NULL, NULL}
 };

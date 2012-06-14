@@ -1,6 +1,7 @@
 #include "quuz.h"
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 
 extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[]; /* quuz-lib.c */
 
@@ -63,6 +64,7 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
     fputs("Context: ", stderr);
     qz_write(st, obj, 3, stderr);
     fputc('\n', stderr);
+    free(st->error_msg);
 
     /* cleanup objects in safety buffer */
     assert(st->safety_buffer_size >= old_safety_buffer_size);
@@ -189,7 +191,7 @@ qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym)
 
 qz_obj_t qz_error(qz_state_t* st, const char* msg)
 {
-  st->error_msg = msg;
+  st->error_msg = strdup(msg);
   longjmp(*st->error_handler, 1);
 }
 

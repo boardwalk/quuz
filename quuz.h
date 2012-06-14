@@ -88,7 +88,7 @@ typedef struct qz_state {
   jmp_buf* error_handler;
 
   /* message to print after catching an error */
-  const char* error_msg;
+  char* error_msg;
 
   /* array of objects to unref if a peval() fails */
   size_t safety_buffer_size;
@@ -215,6 +215,31 @@ int qz_eqv(qz_obj_t a, qz_obj_t b);
 int qz_equal(qz_obj_t a, qz_obj_t b);
 
 /******************************************************************************
+ * quuz-util.c
+ ******************************************************************************/
+
+/* retrieve arguments from a list
+ * spec is a list of type specifiers and modifiers
+ * a: any
+ * i: fixnum
+ * cfun: f
+ * sym: n
+ * bool: b
+ * char: c
+ * pair: p
+ * fun: g
+ * string: s
+ * vector: v
+ * bytevector: w
+ * hash: h
+ * real: r
+ * the last specifier may be followed by ? to make it optional
+ * ... must be pointers to qz_obj_t's.
+ * the optional argument is set to none if not given
+ */
+void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...);
+
+/******************************************************************************
  * quuz-hash.c
  ******************************************************************************/
 
@@ -251,8 +276,7 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj);
 /* find the slot for a symbol in the current environment */
 qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym);
 
-/* throw an error. doesn't return
- * msg must be statically allocated */
+/* throw an error. doesn't return */
 qz_obj_t qz_error(qz_state_t* st, const char* msg);
 
 /* push an object onto the safety buffer

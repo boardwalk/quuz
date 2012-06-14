@@ -70,18 +70,6 @@ static qz_obj_t inner_compare_many(qz_state_t* st, qz_obj_t args, pred_fun pf, c
   }
 }
 
-static void eval2(qz_state_t* st, qz_obj_t *args, qz_obj_t* value1, qz_obj_t* value2)
-{
-  qz_obj_t expr1 = qz_required_arg(st, args);
-  qz_obj_t expr2 = qz_required_arg(st, args);
-
-  *value1 = qz_eval(st, expr1);
-
-  qz_push_safety(st, *value1);
-  *value2 = qz_eval(st, expr2);
-  qz_pop_safety(st, 1);
-}
-
 QZ_DEF_CFUN(scm_begin);
 
 /******************************************************************************
@@ -480,13 +468,13 @@ QZ_DEF_CFUN(scm_define)
 
 static qz_obj_t inner_compare(qz_state_t* st, qz_obj_t args, cmp_fun cf)
 {
-  qz_obj_t result1, result2;
-  eval2(st, &args, &result1, &result2);
+  qz_obj_t obj1, obj2;
+  qz_get_args(st, &args, "aa", &obj1, &obj2);
 
-  int eq = cf(result1,result2);
+  int eq = cf(obj1, obj2);
 
-  qz_unref(st, result1);
-  qz_unref(st, result2);
+  qz_unref(st, obj1);
+  qz_unref(st, obj2);
 
   return eq ? QZ_TRUE : QZ_FALSE;
 }
@@ -618,7 +606,8 @@ QZ_DEF_CFUN(scm_num_sub)
 
 QZ_DEF_CFUN(scm_not)
 {
-  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  qz_obj_t value;
+  qz_get_args(st, &args, "a", &value);
 
   if(qz_eq(value, QZ_FALSE))
     return QZ_TRUE;
@@ -643,50 +632,36 @@ QZ_DEF_CFUN(scm_pair_q)
 
 QZ_DEF_CFUN(scm_cons)
 {
-  qz_obj_t result1, result2;
-  eval2(st, &args, &result1, &result2);
+  qz_obj_t obj1, obj2;
+  qz_get_args(st, &args, "aa", &obj1, &obj2);
 
-  return qz_make_pair(result1, result2);
+  return qz_make_pair(obj1, obj2);
 }
 
 QZ_DEF_CFUN(scm_car)
 {
-  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  qz_obj_t pair;
+  qz_get_args(st, &args, "p", &pair);
 
-  if(!qz_is_pair(value)) {
-    qz_unref(st, value);
-    return qz_error(st, "expected pair");
-  }
-
-  qz_obj_t first = qz_ref(st, qz_first(value));
-  qz_unref(st, value);
+  qz_obj_t first = qz_ref(st, qz_first(pair));
+  qz_unref(st, pair);
   return first;
 }
 
 QZ_DEF_CFUN(scm_cdr)
 {
-  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  qz_obj_t pair;
+  qz_get_args(st, &args, "p", &pair);
 
-  if(!qz_is_pair(value)) {
-    qz_unref(st, value);
-    return qz_error(st, "expected pair");
-  }
-
-  qz_obj_t rest = qz_ref(st, qz_rest(value));
-  qz_unref(st, value);
+  qz_obj_t rest = qz_ref(st, qz_rest(pair));
+  qz_unref(st, pair);
   return rest;
 }
 
 QZ_DEF_CFUN(scm_set_car_b)
 {
   qz_obj_t pair, first;
-  eval2(st, &args, &pair, &first);
-
-  if(!qz_is_pair(pair)) {
-    qz_unref(st, pair);
-    qz_unref(st, first);
-    return qz_error(st, "expected pair");
-  }
+  qz_get_args(st, &args, "pa", &pair, &first);
 
   qz_pair_t* pair_raw = qz_to_pair(pair);
   qz_unref(st, pair_raw->first);
@@ -699,13 +674,7 @@ QZ_DEF_CFUN(scm_set_car_b)
 QZ_DEF_CFUN(scm_set_cdr_b)
 {
   qz_obj_t pair, rest;
-  eval2(st, &args, &pair, &rest);
-
-  if(!qz_is_pair(pair)) {
-    qz_unref(st, pair);
-    qz_unref(st, rest);
-    return qz_error(st, "expected pair");
-  }
+  qz_get_args(st, &args, "pa", &pair, &rest);
 
   qz_pair_t* pair_raw = qz_to_pair(pair);
   qz_unref(st, pair_raw->rest);
@@ -740,14 +709,8 @@ QZ_DEF_CFUN(scm_list_q)
 
 QZ_DEF_CFUN(scm_make_list)
 {
-  qz_obj_t k = qz_eval(st, qz_required_arg(st, &args));
-  qz_obj_t fill = qz_eval(st, qz_optional_arg(st, &args)); /* none evals to none */
-
-  if(!qz_is_fixnum(k)) {
-    qz_unref(st, k);
-    qz_unref(st, fill);
-    return qz_error(st, "expected fixnum");
-  }
+  qz_obj_t k, fill;
+  qz_get_args(st, &args, "ia?", &k, &fill);
 
   qz_obj_t result = QZ_NULL;
 
@@ -828,13 +791,7 @@ QZ_DEF_CFUN(scm_reverse)
 QZ_DEF_CFUN(scm_list_tail)
 {
   qz_obj_t list, k;
-  eval2(st, &args, &list, &k);
-
-  if(!qz_is_fixnum(k)) {
-    qz_unref(st, list);
-    qz_unref(st, k);
-    return qz_error(st, "expected fixnum");
-  }
+  qz_get_args(st, &args, "pi", &list, &k);
 
   qz_obj_t elem = list;
   for(intptr_t i = qz_to_fixnum(k); i > 0; i--)
@@ -885,10 +842,7 @@ QZ_DEF_CFUN(scm_list_set_b)
 static qz_obj_t inner_member(qz_state_t* st, qz_obj_t args, cmp_fun cf)
 {
   qz_obj_t obj, list;
-  eval2(st, &args, &obj, &list);
-
-  qz_push_safety(st, obj);
-  qz_push_safety(st, list);
+  qz_get_args(st, &args, "ap", &obj, &list);
 
   qz_obj_t custom_cmp = QZ_NONE;
   if(cf == qz_equal) {
@@ -1027,12 +981,8 @@ QZ_DEF_CFUN(scm_symbol_q)
 
 QZ_DEF_CFUN(scm_symbol_a_string)
 {
-  qz_obj_t sym = qz_eval(st, qz_required_arg(st, &args));
-
-  if(!qz_is_sym(sym)) {
-    qz_unref(st, sym);
-    return qz_error(st, "expected symbol");
-  }
+  qz_obj_t sym;
+  qz_get_args(st, &args, "n", &sym);
 
   qz_obj_t* str = qz_hash_get(st, st->sym_name, sym);
   assert(str && qz_is_string(*str));
@@ -1042,12 +992,8 @@ QZ_DEF_CFUN(scm_symbol_a_string)
 
 QZ_DEF_CFUN(scm_string_a_symbol)
 {
-  qz_obj_t str = qz_eval(st, qz_required_arg(st, &args));
-
-  if(!qz_is_string(str)) {
-    qz_unref(st, str);
-    return qz_error(st, "expected string");
-  }
+  qz_obj_t str;
+  qz_get_args(st, &args, "s", &str);
 
   return qz_make_sym(st, str);
 }
@@ -1171,21 +1117,15 @@ QZ_DEF_CFUN(scm_digit_value)
 
 QZ_DEF_CFUN(scm_char_a_integer)
 {
-  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
-  if(!qz_is_char(value)) {
-    qz_unref(st, value);
-    return qz_error(st, "expected character");
-  }
+  qz_obj_t value;
+  qz_get_args(st, &args, "c", &value);
   return qz_from_fixnum(qz_to_char(value));
 }
 
 QZ_DEF_CFUN(scm_integer_a_char)
 {
-  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
-  if(!qz_is_fixnum(value)) {
-    qz_unref(st, value);
-    return qz_error(st, "expected fixnum");
-  }
+  qz_obj_t value;
+  qz_get_args(st, &args, "i", &value);
   return qz_from_char(qz_to_fixnum(value));
 }
 
@@ -1200,20 +1140,8 @@ QZ_DEF_CFUN(scm_string_q)
 
 QZ_DEF_CFUN(scm_make_string)
 {
-  qz_obj_t k = qz_eval(st, qz_required_arg(st, &args));
-  qz_obj_t ch = qz_eval(st, qz_optional_arg(st, &args));
-
-  if(!qz_is_fixnum(k)) {
-    qz_unref(st, k);
-    qz_unref(st, ch);
-    return qz_error(st, "expected fixnum");
-  }
-
-  if(!qz_is_none(ch) && !qz_is_char(ch)) {
-    qz_unref(st, k);
-    qz_unref(st, ch);
-    return qz_error(st, "expected character");
-  }
+  qz_obj_t k, ch;
+  qz_get_args(st, &args, "ic?", &k, &ch);
 
   intptr_t k_raw = qz_to_fixnum(k);
 
@@ -1231,12 +1159,8 @@ QZ_DEF_CFUN(scm_make_string)
 
 QZ_DEF_CFUN(scm_string_length)
 {
-  qz_obj_t str = qz_eval(st, qz_required_arg(st, &args));
-  if(!qz_is_string(str)) {
-    qz_unref(st, str);
-    return qz_error(st, "expected string");
-  }
-
+  qz_obj_t str;
+  qz_get_args(st, &args, "s", &str);
   return qz_from_fixnum(qz_to_cell(str)->value.array.size);
 }
 

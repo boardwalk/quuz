@@ -428,7 +428,6 @@ QZ_DEF_CFUN(scm_define)
   }
 
   return QZ_NONE;
-
 }
 
 /******************************************************************************
@@ -875,6 +874,16 @@ static qz_obj_t inner_member(qz_state_t* st, qz_obj_t args, cmp_fun cf)
   qz_push_safety(st, obj);
   qz_push_safety(st, list);
 
+  qz_obj_t custom_cmp = QZ_NONE;
+  if(cf == qz_equal) {
+    custom_cmp = qz_optional_arg(st, &args);
+    if(!qz_is_none(custom_cmp)) {
+      qz_obj_t args = qz_make_pair(QZ_NULL, qz_make_pair(qz_ref(st, obj), QZ_NULL));
+      custom_cmp = qz_make_pair(qz_eval(st, custom_cmp), args);
+      qz_push_safety(st, custom_cmp);
+    }
+  }
+
   qz_obj_t elem = list;
   qz_obj_t result = QZ_FALSE;
   for(;;) {
@@ -884,7 +893,24 @@ static qz_obj_t inner_member(qz_state_t* st, qz_obj_t args, cmp_fun cf)
     if(!qz_is_pair(elem))
       return qz_error(st, "expected list");
 
-    if(cf(qz_first(elem), obj)) {
+    int match;
+    if(!qz_is_none(custom_cmp)) {
+      qz_obj_t* arg = &qz_to_pair(qz_rest(custom_cmp))->first;
+      /* insert element into args */
+      qz_unref(st, *arg);
+      *arg = qz_ref(st, qz_first(elem));
+      /* call custom comparator */
+      qz_obj_t custom_cmp_result = qz_eval(st, custom_cmp);
+      /* check for equality */
+      match = !qz_eq(custom_cmp_result, QZ_FALSE);
+      /* cleanup */
+      qz_unref(st, custom_cmp_result);
+    }
+    else {
+      match = cf(qz_first(elem), obj);
+    }
+
+    if(match) {
       result = qz_ref(st, elem);
       break;
     }
@@ -892,6 +918,10 @@ static qz_obj_t inner_member(qz_state_t* st, qz_obj_t args, cmp_fun cf)
     elem = qz_rest(elem);
   }
 
+  if(!qz_is_none(custom_cmp)) {
+    qz_pop_safety(st, 1);
+    qz_unref(st, custom_cmp);
+  }
   qz_pop_safety(st, 2);
   qz_unref(st, obj);
   qz_unref(st, list);
@@ -911,7 +941,6 @@ QZ_DEF_CFUN(scm_memv)
 
 QZ_DEF_CFUN(scm_member)
 {
-  /* TODO support custom comparison function */
   return inner_member(st, args, qz_equal);
 }
 
@@ -940,7 +969,6 @@ QZ_DEF_CFUN(scm_assv)
 
 QZ_DEF_CFUN(scm_assoc)
 {
-  /* TODO support custom comparison function */
   return inner_assoc(st, args, qz_equal);
 }
 

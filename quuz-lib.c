@@ -1164,6 +1164,42 @@ QZ_DEF_CFUN(scm_string_length)
   return qz_from_fixnum(qz_to_cell(str)->value.array.size);
 }
 
+QZ_DEF_CFUN(scm_string_ref)
+{
+  qz_obj_t str, k;
+  qz_get_args(st, &args, "si", &str, &k);
+
+  intptr_t k_raw = qz_to_fixnum(k);
+
+  qz_cell_t* cell = qz_to_cell(str);
+  if(k_raw < 0 || k_raw >= cell->value.array.size) {
+    qz_unref(st, str);
+    return qz_error(st, "index out of bounds");
+  }
+
+  char ch = QZ_CELL_DATA(cell, char)[k_raw];
+  qz_unref(st, str);
+  return qz_from_char(ch);
+}
+
+QZ_DEF_CFUN(scm_string_set_b)
+{
+  qz_obj_t str, k, ch;
+  qz_get_args(st, &args, "sic", &str, &k, &ch);
+
+  intptr_t k_raw = qz_to_fixnum(k);
+
+  qz_cell_t* cell = qz_to_cell(k);
+  if(k_raw < 0 || k_raw >= cell->value.array.size) {
+    qz_unref(st, str);
+    return qz_error(st, "index out of bounds");
+  }
+
+  QZ_CELL_DATA(cell, char)[k_raw] = qz_to_char(ch);
+  qz_unref(st, str);
+  return QZ_NONE;
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1251,6 +1287,8 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_string_q, "string?"},
   {scm_make_string, "make-string"},
   {scm_string_length, "string-length"},
+  {scm_string_ref, "string-ref"},
+  {scm_string_set_b, "string-set!"},
   {scm_write, "write"},
   {NULL, NULL}
 };

@@ -1120,6 +1120,42 @@ QZ_DEF_CFUN(scm_char_ci_gte_q)
   return inner_compare_many(st, args, qz_is_char, compare_char_ci, GREATER|EQUAL);
 }
 
+typedef int (*char_pred_fun)(int);
+
+static qz_obj_t inner_char_predicate(qz_state_t* st, qz_obj_t args, char_pred_fun cpf)
+{
+  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  if(!qz_is_char(value)) {
+    qz_unref(st, value);
+    return QZ_FALSE;
+  }
+  return cpf(qz_to_char(value)) ? QZ_TRUE : QZ_FALSE;
+}
+
+QZ_DEF_CFUN(scm_char_alphabetic_q)
+{
+  return inner_char_predicate(st, args, isalpha);
+}
+
+QZ_DEF_CFUN(scm_char_numeric_q)
+{
+  return inner_char_predicate(st, args, isdigit);
+}
+
+QZ_DEF_CFUN(scm_char_whitespace_q)
+{
+  return inner_char_predicate(st, args, isspace);
+}
+
+QZ_DEF_CFUN(scm_char_upper_case_q)
+{
+  return inner_char_predicate(st, args, isupper);
+}
+
+QZ_DEF_CFUN(scm_char_lower_case_q)
+{
+  return inner_char_predicate(st, args, islower);
+}
 
 /******************************************************************************
  * 6.13. Input and output
@@ -1197,6 +1233,11 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_char_ci_gt_q, "char-ci>?"},
   {scm_char_ci_lte_q, "char-ci<=?"},
   {scm_char_ci_gte_q, "char-ci>=?"},
+  {scm_char_alphabetic_q, "char-alphabetic?"},
+  {scm_char_numeric_q, "char-numeric?"},
+  {scm_char_whitespace_q, "char-whitespace?"},
+  {scm_char_upper_case_q, "char-upper-case?"},
+  {scm_char_lower_case_q, "char-lower-case?"},
   {scm_write, "write"},
   {NULL, NULL}
 };

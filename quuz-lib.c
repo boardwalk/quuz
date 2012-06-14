@@ -1,13 +1,12 @@
 #include "quuz.h"
 #include <assert.h>
+#include <ctype.h>
 
 #define ALIGNED __attribute__ ((aligned (8)))
 #define QZ_DEF_CFUN(n) static ALIGNED qz_obj_t n(qz_state_t* st, qz_obj_t args)
 
-static int qz_compare(qz_obj_t a, qz_obj_t b)
-{
-  return a.value - b.value;
-}
+typedef int (*pred_fun)(qz_obj_t);
+typedef int (*cmp_fun)(qz_obj_t, qz_obj_t);
 
 static void set_var(qz_state_t* st, qz_obj_t name, qz_obj_t value)
 {
@@ -16,14 +15,58 @@ static void set_var(qz_state_t* st, qz_obj_t name, qz_obj_t value)
   qz_hash_set(st, inner_env, name, value);
 }
 
-typedef int (*pred_fun)(qz_obj_t);
-
 qz_obj_t inner_predicate(qz_state_t* st, qz_obj_t args, pred_fun pf)
 {
   qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
   int b = pf(value);
   qz_unref(st, value);
   return b ? QZ_TRUE : QZ_FALSE;
+}
+
+#define LESS 1
+#define EQUAL 2
+#define GREATER 4
+
+static int sign_of(int i)
+{
+  return 2 + 2*(i > 0) - (i < 0);
+}
+
+static qz_obj_t inner_compare_many(qz_state_t* st, qz_obj_t args, pred_fun pf, cmp_fun cf, int flags)
+{
+  qz_obj_t prev = qz_eval(st, qz_required_arg(st, &args));
+  if(!pf(prev)) {
+    qz_unref(st, prev);
+    return qz_error(st, "unexpected type");
+  }
+
+  /* compare each pair of objects */
+  for(;;) {
+    qz_obj_t expr = qz_optional_arg(st, &args);
+    if(qz_is_none(expr)) {
+      qz_unref(st, prev);
+      return QZ_TRUE; /* ran out of expressions */
+    }
+
+    qz_push_safety(st, prev);
+
+    qz_obj_t curr = qz_eval(st, expr);
+    if(!pf(curr)) {
+      qz_unref(st, curr);
+      return qz_error(st, "unexpected type");
+    }
+
+    qz_pop_safety(st, 1);
+
+    if(!(sign_of(cf(prev, curr)) & flags)) {
+      qz_unref(st, prev);
+      qz_unref(st, curr);
+      return QZ_FALSE; /* comparison didn't match */
+    }
+
+    qz_unref(st, prev);
+    prev = curr;
+  }
 }
 
 static void eval2(qz_state_t* st, qz_obj_t *args, qz_obj_t* value1, qz_obj_t* value2)
@@ -434,8 +477,6 @@ QZ_DEF_CFUN(scm_define)
  * 6.1. Equivalence predicates
  ******************************************************************************/
 
-typedef int (*cmp_fun)(qz_obj_t, qz_obj_t);
-
 static qz_obj_t inner_compare(qz_state_t* st, qz_obj_t args, cmp_fun cf)
 {
   qz_obj_t result1, result2;
@@ -469,61 +510,35 @@ QZ_DEF_CFUN(scm_equal_q)
  ******************************************************************************/
 
 /* 6.2.6. Numerical operations */
-#define LESS 1
-#define EQUAL 2
-#define GREATER 4
 
-static int sign_of(int i)
+static int compare_fixnum(qz_obj_t a, qz_obj_t b)
 {
-  return 2 + 2*(i > 0) - (i < 0);
-}
-
-static qz_obj_t inner_num_compare(qz_state_t* st, qz_obj_t args, int flags)
-{
-  qz_obj_t prev = qz_eval(st, qz_required_arg(st, &args));
-
-  /* compare each pair of numbers */
-  for(;;) {
-    qz_obj_t expr = qz_optional_arg(st, &args);
-    if(qz_is_none(expr))
-      return QZ_TRUE; /* ran out of expressions */
-
-    qz_obj_t curr = qz_eval(st, expr);
-
-    if(!(sign_of(qz_compare(prev, curr)) & flags)) {
-      qz_unref(st, prev);
-      qz_unref(st, curr);
-      return QZ_FALSE; /* comparison didn't match */
-    }
-
-    qz_unref(st, prev);
-    prev = curr;
-  }
+  return a.value - b.value;
 }
 
 QZ_DEF_CFUN(scm_num_eq)
 {
-  return inner_num_compare(st, args, EQUAL);
+  return inner_compare_many(st, args, qz_is_fixnum, compare_fixnum, EQUAL);
 }
 
 QZ_DEF_CFUN(scm_num_lt)
 {
-  return inner_num_compare(st, args, LESS);
+  return inner_compare_many(st, args, qz_is_fixnum, compare_fixnum, LESS);
 }
 
 QZ_DEF_CFUN(scm_num_gt)
 {
-  return inner_num_compare(st, args, GREATER);
+  return inner_compare_many(st, args, qz_is_fixnum, compare_fixnum, GREATER);
 }
 
 QZ_DEF_CFUN(scm_num_lte)
 {
-  return inner_num_compare(st, args, LESS|EQUAL);
+  return inner_compare_many(st, args, qz_is_fixnum, compare_fixnum, LESS|EQUAL);
 }
 
 QZ_DEF_CFUN(scm_num_gte)
 {
-  return inner_num_compare(st, args, GREATER|EQUAL);
+  return inner_compare_many(st, args, qz_is_fixnum, compare_fixnum, GREATER|EQUAL);
 }
 
 QZ_DEF_CFUN(scm_num_add)
@@ -1037,6 +1052,76 @@ QZ_DEF_CFUN(scm_string_a_symbol)
 }
 
 /******************************************************************************
+ * 6.6. Characters
+ ******************************************************************************/
+
+static int compare_char(qz_obj_t a, qz_obj_t b)
+{
+  return a.value - b.value;
+}
+
+static int compare_char_ci(qz_obj_t a, qz_obj_t b)
+{
+  return tolower(qz_to_char(a)) - tolower(qz_to_char(b));
+}
+
+QZ_DEF_CFUN(scm_char_q)
+{
+  return inner_predicate(st, args, qz_is_char);
+}
+
+QZ_DEF_CFUN(scm_char_eq_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char, EQUAL);
+}
+
+QZ_DEF_CFUN(scm_char_lt_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char, LESS);
+}
+
+QZ_DEF_CFUN(scm_char_gt_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char, GREATER);
+}
+
+QZ_DEF_CFUN(scm_char_lte_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char, LESS|EQUAL);
+}
+
+QZ_DEF_CFUN(scm_char_gte_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char, GREATER|EQUAL);
+}
+
+QZ_DEF_CFUN(scm_char_ci_eq_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char_ci, EQUAL);
+}
+
+QZ_DEF_CFUN(scm_char_ci_lt_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char_ci, LESS);
+}
+
+QZ_DEF_CFUN(scm_char_ci_gt_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char_ci, GREATER);
+}
+
+QZ_DEF_CFUN(scm_char_ci_lte_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char_ci, LESS|EQUAL);
+}
+
+QZ_DEF_CFUN(scm_char_ci_gte_q)
+{
+  return inner_compare_many(st, args, qz_is_char, compare_char_ci, GREATER|EQUAL);
+}
+
+
+/******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
 
@@ -1101,6 +1186,17 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_symbol_q, "symbol?"},
   {scm_symbol_a_string, "symbol->string"},
   {scm_string_a_symbol, "string->symbol"},
+  {scm_char_q, "char?"},
+  {scm_char_eq_q, "char=?"},
+  {scm_char_lt_q, "char<?"},
+  {scm_char_gt_q, "char>?"},
+  {scm_char_lte_q, "char<=?"},
+  {scm_char_gte_q, "char>=?"},
+  {scm_char_ci_eq_q, "char-ci=?"},
+  {scm_char_ci_lt_q, "char-ci<?"},
+  {scm_char_ci_gt_q, "char-ci>?"},
+  {scm_char_ci_lte_q, "char-ci<=?"},
+  {scm_char_ci_gte_q, "char-ci>=?"},
   {scm_write, "write"},
   {NULL, NULL}
 };

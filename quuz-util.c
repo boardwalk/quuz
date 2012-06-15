@@ -76,7 +76,8 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...)
     else if(qz_is_null(*args))  {
       if(*(s + 1) == '?') {
 	*obj = QZ_NONE;
-	break; /* missing optional argument */
+	s++; /* skip ? */
+	continue; /* missing optional argument */
       }
       char msg[64];
       sprintf(msg, "missing %s at argument %ld\n", type_name(*s), nargs);

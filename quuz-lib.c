@@ -1561,6 +1561,41 @@ QZ_DEF_CFUN(scm_string_a_vector)
   return qz_from_cell(out);
 }
 
+QZ_DEF_CFUN(scm_vector_copy)
+{
+  qz_obj_t vec, start, end, fill;
+  qz_get_args(st, &args, "vi?i?a?", &vec, &start, &end, &fill);
+
+  qz_cell_t* in = qz_to_cell(vec);
+  size_t in_len = in->value.array.size;
+
+  intptr_t start_raw = qz_is_none(start) ? 0 : qz_to_fixnum(start);
+  intptr_t end_raw = qz_is_none(end) ? in_len : qz_to_fixnum(end);
+
+  if(start_raw > end_raw) {
+    qz_unref(st, vec);
+    return qz_error(st, "invalid index");
+  }
+
+  size_t out_len = end_raw - start_raw;
+  qz_cell_t* out = qz_make_cell(QZ_CT_VECTOR, out_len*sizeof(qz_obj_t));
+  out->value.array.size = out_len;
+  out->value.array.capacity = out_len;
+
+  for(size_t i = 0; i < out_len; i++)
+  {
+    if((i + start_raw < 0) || (i + start_raw >= in_len)) {
+      QZ_CELL_DATA(out, qz_obj_t)[i] = QZ_NONE;
+    }
+    else {
+      QZ_CELL_DATA(out, qz_obj_t)[i] = qz_ref(st, QZ_CELL_DATA(in, qz_obj_t)[i + start_raw]);
+    }
+  }
+
+  qz_unref(st, vec);
+  return qz_from_cell(out);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1673,6 +1708,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_list_a_vector, "list->vector"},
   {scm_vector_a_string, "vector->string"},
   {scm_string_a_vector, "string->vector"},
+  {scm_vector_copy, "vector-copy"},
   {scm_write, "write"},
   {NULL, NULL}
 };

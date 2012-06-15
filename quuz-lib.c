@@ -1200,6 +1200,96 @@ QZ_DEF_CFUN(scm_string_set_b)
   return QZ_NONE;
 }
 
+static int min(size_t a, size_t b)
+{
+  return a < b ? a : b;
+}
+
+static int memicmp(const void* s1, const void* s2, size_t n)
+{
+  for(size_t i = 0; i < n; i++) {
+    int d = tolower(((const char*)s1)[i]) - tolower(((const char*)s2)[i]);
+    if(d) return d;
+  }
+  return 0;
+}
+
+typedef int (*memcmp_fun)(const void*, const void*, size_t);
+
+static int inner_compare_string(qz_obj_t a, qz_obj_t b, memcmp_fun mcf)
+{
+  qz_cell_t* a_cell = qz_to_cell(a);
+  qz_cell_t* b_cell = qz_to_cell(b);
+
+  int cmp = mcf(QZ_CELL_DATA(a_cell, char), QZ_CELL_DATA(b_cell, char),
+		min(a_cell->value.array.size, b_cell->value.array.size));
+
+  if(cmp == 0)
+    return a_cell->value.array.size - b_cell->value.array.size;
+
+  return cmp;
+}
+
+static int compare_string(qz_obj_t a, qz_obj_t b)
+{
+  return inner_compare_string(a, b, memcmp);
+}
+
+static int compare_string_ci(qz_obj_t a, qz_obj_t b)
+{
+  return inner_compare_string(a, b, memicmp);
+}
+
+QZ_DEF_CFUN(scm_string_eq_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string, EQUAL);
+}
+
+QZ_DEF_CFUN(scm_string_ci_eq_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string_ci, EQUAL);
+}
+
+QZ_DEF_CFUN(scm_string_lt_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string, LESS);
+}
+
+QZ_DEF_CFUN(scm_string_ci_lt_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string_ci, LESS);
+}
+
+QZ_DEF_CFUN(scm_string_gt_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string, GREATER);
+}
+
+QZ_DEF_CFUN(scm_string_ci_gt_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string_ci, GREATER);
+}
+
+QZ_DEF_CFUN(scm_string_lte_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string, LESS|EQUAL);
+}
+
+QZ_DEF_CFUN(scm_string_ci_lte_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string_ci, LESS|EQUAL);
+}
+
+QZ_DEF_CFUN(scm_string_gte_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string, GREATER|EQUAL);
+}
+
+QZ_DEF_CFUN(scm_string_ci_gte_q)
+{
+  return inner_compare_many(st, args, qz_is_string, compare_string_ci, GREATER|EQUAL);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1289,6 +1379,16 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_string_length, "string-length"},
   {scm_string_ref, "string-ref"},
   {scm_string_set_b, "string-set!"},
+  {scm_string_eq_q, "string=?"},
+  {scm_string_ci_eq_q, "string-ci=?"},
+  {scm_string_lt_q, "string<?"},
+  {scm_string_ci_lt_q, "string-ci<?"},
+  {scm_string_gt_q, "string>?"},
+  {scm_string_ci_gt_q, "string-ci>?"},
+  {scm_string_lte_q, "string<=?"},
+  {scm_string_ci_lte_q, "string-ci<=?"},
+  {scm_string_gte_q, "string>=?"},
+  {scm_string_ci_gte_q, "string-ci>=?"},
   {scm_write, "write"},
   {NULL, NULL}
 };

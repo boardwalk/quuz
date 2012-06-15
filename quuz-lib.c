@@ -1171,11 +1171,18 @@ QZ_DEF_CFUN(scm_make_string)
 
 /* TODO string */
 
+static qz_obj_t array_length(qz_state_t* st, qz_obj_t args, const char* type_char)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, type_char, &obj);
+  size_t len = qz_to_cell(obj)->value.array.size;
+  qz_unref(st, obj);
+  return qz_from_fixnum(len);
+}
+
 QZ_DEF_CFUN(scm_string_length)
 {
-  qz_obj_t str;
-  qz_get_args(st, &args, "s", &str);
-  return qz_from_fixnum(qz_to_cell(str)->value.array.size);
+  return array_length(st, args, "s");
 }
 
 QZ_DEF_CFUN(scm_string_ref)
@@ -1420,9 +1427,7 @@ QZ_DEF_CFUN(scm_make_vector)
 
 QZ_DEF_CFUN(scm_vector_length)
 {
-  qz_obj_t vec;
-  qz_get_args(st, &args, "v", &vec);
-  return qz_from_fixnum(qz_to_cell(vec)->value.array.size);
+  return array_length(st, args, "v");
 }
 
 QZ_DEF_CFUN(scm_vector_ref)
@@ -1596,6 +1601,41 @@ QZ_DEF_CFUN(scm_vector_copy)
   return qz_from_cell(out);
 }
 
+/* TODO vector-fill! */
+
+/******************************************************************************
+ * 6.9. Bytevectors
+ ******************************************************************************/
+
+QZ_DEF_CFUN(scm_bytevector_q)
+{
+  return inner_predicate(st, args, qz_is_bytevector);
+}
+
+QZ_DEF_CFUN(scm_make_bytevector)
+{
+  qz_obj_t k, fill;
+  qz_get_args(st, &args, "ii?", &k, &fill);
+
+  intptr_t k_raw = qz_to_fixnum(k);
+  if(k_raw < 0)
+    return qz_error(st, "bad bytevector length");
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_BYTEVECTOR, k_raw*sizeof(uint8_t));
+  cell->value.array.size = k_raw;
+  cell->value.array.capacity = k_raw;
+
+  if(!qz_is_none(fill))
+    memset(QZ_CELL_DATA(cell, uint8_t), qz_to_fixnum(fill), k_raw*sizeof(uint8_t));
+
+  return qz_from_cell(cell);
+}
+
+QZ_DEF_CFUN(scm_bytevector_length)
+{
+  return array_length(st, args, "w");
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1709,6 +1749,9 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_vector_a_string, "vector->string"},
   {scm_string_a_vector, "string->vector"},
   {scm_vector_copy, "vector-copy"},
+  {scm_bytevector_q, "bytevector?"},
+  {scm_make_bytevector, "make-bytevector"},
+  {scm_bytevector_length, "bytevector-length"},
   {scm_write, "write"},
   {NULL, NULL}
 };

@@ -1516,6 +1516,51 @@ QZ_DEF_CFUN(scm_list_a_vector)
   return qz_from_cell(cell);
 }
 
+QZ_DEF_CFUN(scm_vector_a_string)
+{
+  qz_obj_t vec;
+  qz_get_args(st, &args, "v", &vec);
+
+  qz_cell_t* in = qz_to_cell(vec);
+  size_t len = in->value.array.size;
+
+  qz_cell_t* out = qz_make_cell(QZ_CT_STRING, len*sizeof(char));
+  out->value.array.size = len;
+  out->value.array.capacity = len;
+
+  for(size_t i = 0; i < len; i++) {
+    qz_obj_t ch = QZ_CELL_DATA(in, qz_obj_t)[i];
+    if(!qz_is_char(ch)) {
+      qz_unref(st, vec);
+      qz_unref(st, qz_from_cell(out));
+      return qz_error(st, "expected char");
+    }
+    QZ_CELL_DATA(out, char)[i] = qz_to_char(ch);
+  }
+
+  qz_unref(st, vec);
+  return qz_from_cell(out);
+}
+
+QZ_DEF_CFUN(scm_string_a_vector)
+{
+  qz_obj_t str;
+  qz_get_args(st, &args, "s", &str);
+
+  qz_cell_t* in = qz_to_cell(str);
+  size_t len = in->value.array.size;
+
+  qz_cell_t* out = qz_make_cell(QZ_CT_VECTOR, len*sizeof(qz_obj_t));
+  out->value.array.size = len;
+  out->value.array.capacity = len;
+
+  for(size_t i = 0; i < len; i++)
+    QZ_CELL_DATA(out, qz_obj_t)[i] = qz_from_char(QZ_CELL_DATA(in, char)[i]);
+
+  qz_unref(st, str);
+  return qz_from_cell(out);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1626,6 +1671,8 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_vector_set_b, "vector-set!"},
   {scm_vector_a_list, "vector->list"},
   {scm_list_a_vector, "list->vector"},
+  {scm_vector_a_string, "vector->string"},
+  {scm_string_a_vector, "string->vector"},
   {scm_write, "write"},
   {NULL, NULL}
 };

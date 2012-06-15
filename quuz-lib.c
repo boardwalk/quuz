@@ -1240,6 +1240,8 @@ static int compare_string_ci(qz_obj_t a, qz_obj_t b)
   return inner_compare_string(a, b, memicmp);
 }
 
+/* TODO -ni variants */
+
 QZ_DEF_CFUN(scm_string_eq_q)
 {
   return inner_compare_many(st, args, qz_is_string, compare_string, EQUAL);
@@ -1289,6 +1291,38 @@ QZ_DEF_CFUN(scm_string_ci_gte_q)
 {
   return inner_compare_many(st, args, qz_is_string, compare_string_ci, GREATER|EQUAL);
 }
+
+typedef int (*xformchar_fun)(int);
+
+static qz_obj_t inner_transform_string(qz_state_t* st, qz_obj_t args, xformchar_fun xcf)
+{
+  qz_obj_t str;
+  qz_get_args(st, &args, "s", &str);
+
+  qz_cell_t* in = qz_to_cell(str);
+  size_t len = in->value.array.size;
+
+  qz_cell_t* out = qz_make_cell(QZ_CT_STRING, len*sizeof(char));
+  out->value.array.size = len;
+  out->value.array.capacity = len;
+
+  for(size_t i = 0; i < len; i++)
+    QZ_CELL_DATA(out, char)[i] = xcf(QZ_CELL_DATA(in, char)[i]);
+
+  return qz_from_cell(out);
+}
+
+QZ_DEF_CFUN(scm_string_upcase)
+{
+  return inner_transform_string(st, args, toupper);
+}
+
+QZ_DEF_CFUN(scm_string_downcase)
+{
+  return inner_transform_string(st, args, tolower);
+}
+
+/* TODO string-foldcase */
 
 /******************************************************************************
  * 6.13. Input and output
@@ -1389,6 +1423,8 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_string_ci_lte_q, "string-ci<=?"},
   {scm_string_gte_q, "string>=?"},
   {scm_string_ci_gte_q, "string-ci>=?"},
+  {scm_string_upcase, "string-upcase"},
+  {scm_string_downcase, "string-downcase"},
   {scm_write, "write"},
   {NULL, NULL}
 };

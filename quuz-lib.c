@@ -1184,6 +1184,10 @@ QZ_DEF_CFUN(scm_string_ref)
 
 QZ_DEF_CFUN(scm_string_set_b)
 {
+  /* TODO add immutable flag to strings,
+   * set for strings converted from symbols
+   * check here and elsewhere and throw an error */
+
   qz_obj_t str, k, ch;
   qz_get_args(st, &args, "sic", &str, &k, &ch);
 

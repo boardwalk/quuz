@@ -1309,6 +1309,8 @@ static qz_obj_t inner_transform_string(qz_state_t* st, qz_obj_t args, xformchar_
   for(size_t i = 0; i < len; i++)
     QZ_CELL_DATA(out, char)[i] = xcf(QZ_CELL_DATA(in, char)[i]);
 
+  qz_unref(st, str);
+
   return qz_from_cell(out);
 }
 
@@ -1323,6 +1325,31 @@ QZ_DEF_CFUN(scm_string_downcase)
 }
 
 /* TODO string-foldcase */
+
+QZ_DEF_CFUN(scm_substring)
+{
+  qz_obj_t str, start, end;
+  qz_get_args(st, &args, "sii", &str, &start, &end);
+
+  qz_cell_t* in = qz_to_cell(str);
+  intptr_t start_raw = qz_to_fixnum(start);
+  intptr_t end_raw = qz_to_fixnum(end);
+
+  if(start_raw < 0 || end_raw < start_raw || in->value.array.size < end_raw) {
+    qz_unref(st, str);
+    return qz_error(st, "index out of bounds");
+  }
+
+  qz_cell_t* out = qz_make_cell(QZ_CT_STRING, (end_raw-start_raw)*sizeof(char));
+
+  memcpy(QZ_CELL_DATA(out, char),
+	 QZ_CELL_DATA(in, char) + start_raw,
+	 (end_raw-start_raw)*sizeof(char));
+
+  qz_unref(st, str);
+
+  return qz_from_cell(out);
+}
 
 /******************************************************************************
  * 6.13. Input and output
@@ -1425,6 +1452,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_string_ci_gte_q, "string-ci>=?"},
   {scm_string_upcase, "string-upcase"},
   {scm_string_downcase, "string-downcase"},
+  {scm_substring, "substring"},
   {scm_write, "write"},
   {NULL, NULL}
 };

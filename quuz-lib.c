@@ -724,43 +724,55 @@ QZ_DEF_CFUN(scm_make_list)
 
 QZ_DEF_CFUN(scm_list)
 {
-  qz_obj_t expr = qz_optional_arg(st, &args);
-  if(qz_is_none(expr))
-    return QZ_NULL;
-
-  qz_obj_t value = qz_eval(st, expr);
-  qz_obj_t result = qz_make_pair(value, QZ_NULL);
+  qz_obj_t result = QZ_NULL;
+  qz_obj_t elem = QZ_NULL;
 
   for(;;) {
-    expr = qz_optional_arg(st, &args);
-    if(qz_is_none(expr))
+    qz_obj_t obj;
+    qz_get_args(st, &args, "a?", &obj);
+    if(qz_is_none(obj))
       return result;
 
-    qz_push_safety(st, result);
-    value = qz_eval(st, expr);
-    qz_pop_safety(st, 1);
+    qz_obj_t inner_elem = qz_make_pair(obj, QZ_NULL);
 
-    qz_obj_t inner_result = qz_make_pair(value, QZ_NULL);
-    qz_to_pair(result)->rest = inner_result;
-    result = inner_result;
+    if(qz_is_null(elem)) {
+      result = elem = inner_elem;
+    }
+    else {
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+  }
+}
+
+static intptr_t list_length(qz_obj_t obj)
+{
+  intptr_t len = 0;
+  for(;;) {
+    if(qz_is_null(obj))
+      return len;
+
+    if(!qz_is_pair(obj))
+      return -1;
+
+    len++;
+    obj = qz_rest(obj);
   }
 }
 
 QZ_DEF_CFUN(scm_length)
 {
-  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
+  qz_obj_t obj;
+  qz_get_args(st, &args, "a", &obj);
 
-  intptr_t len = 0;
-  for(;;) {
-    if(qz_is_null(value))
-      return qz_from_fixnum(len);
+  intptr_t len = list_length(obj);
 
-    if(!qz_is_pair(value))
-      return qz_error(st, "expected list");
+  qz_unref(st, obj);
 
-    len++;
-    value = qz_rest(value);
-  }
+  if(len < 0)
+    return qz_error(st, "expected list");
+
+  return qz_from_fixnum(len);
 }
 
 /* TODO append */
@@ -1140,17 +1152,19 @@ QZ_DEF_CFUN(scm_string_q)
 
 QZ_DEF_CFUN(scm_make_string)
 {
-  qz_obj_t k, ch;
-  qz_get_args(st, &args, "ic?", &k, &ch);
+  qz_obj_t k, fill;
+  qz_get_args(st, &args, "ic?", &k, &fill);
 
   intptr_t k_raw = qz_to_fixnum(k);
+  if(k_raw < 0)
+    return qz_error(st, "bad string length");
 
   qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, k_raw*sizeof(char));
   cell->value.array.size = k_raw;
   cell->value.array.capacity = k_raw;
 
-  if(!qz_is_none(ch))
-    memset(QZ_CELL_DATA(cell, char), qz_to_char(ch), k_raw*sizeof(char));
+  if(!qz_is_none(fill))
+    memset(QZ_CELL_DATA(cell, char), qz_to_char(fill), k_raw*sizeof(char));
 
   return qz_from_cell(cell);
 }
@@ -1369,6 +1383,139 @@ QZ_DEF_CFUN(scm_string_copy)
   return inner_transform_string(st, args, identity);
 }
 
+/* TODO string-fill! */
+
+/******************************************************************************
+ * 6.8. Vectors
+ ******************************************************************************/
+
+QZ_DEF_CFUN(scm_vector_q)
+{
+  return inner_predicate(st, args, qz_is_vector);
+}
+
+QZ_DEF_CFUN(scm_make_vector)
+{
+  qz_obj_t k, fill;
+  qz_get_args(st, &args, "ia?", &k, &fill);
+
+  intptr_t k_raw = qz_to_fixnum(k);
+  if(k_raw < 0) {
+    qz_unref(st, fill);
+    return qz_error(st, "bad vector length");
+  }
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, k_raw*sizeof(qz_obj_t));
+  cell->value.array.size = k_raw;
+  cell->value.array.capacity = k_raw;
+
+  if(!qz_is_none(fill)) {
+    for(size_t i = 0; i < k_raw; i++)
+      QZ_CELL_DATA(cell, qz_obj_t)[i] = qz_ref(st, fill);
+    qz_unref(st, fill);
+  }
+
+  return qz_from_cell(cell);
+}
+
+QZ_DEF_CFUN(scm_vector_length)
+{
+  qz_obj_t vec;
+  qz_get_args(st, &args, "v", &vec);
+  return qz_from_fixnum(qz_to_cell(vec)->value.array.size);
+}
+
+QZ_DEF_CFUN(scm_vector_ref)
+{
+  qz_obj_t vec, k;
+  qz_get_args(st, &args, "vi", &vec, &k);
+
+  intptr_t k_raw = qz_to_fixnum(k);
+
+  qz_cell_t* cell = qz_to_cell(vec);
+  if(k_raw < 0 || k_raw >= cell->value.array.size) {
+    qz_unref(st, vec);
+    return qz_error(st, "index out of bounds");
+  }
+
+  qz_obj_t obj = QZ_CELL_DATA(cell, qz_obj_t)[k_raw];
+  qz_unref(st, vec);
+  return qz_ref(st, obj);
+}
+
+QZ_DEF_CFUN(scm_vector_set_b)
+{
+  qz_obj_t vec, k, obj;
+  qz_get_args(st, &args, "via", &vec, &k, &obj);
+
+  intptr_t k_raw = qz_to_fixnum(k);
+
+  qz_cell_t* cell = qz_to_cell(vec);
+  if(k_raw < 0 || k_raw >= cell->value.array.size) {
+    qz_unref(st, vec);
+    return qz_error(st, "index out of bounds");
+  }
+
+  qz_obj_t* slot = QZ_CELL_DATA(cell, qz_obj_t) + k_raw;
+  qz_unref(st, *slot);
+  *slot = obj;
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_vector_a_list)
+{
+  qz_obj_t vec;
+  qz_get_args(st, &args, "v", &vec);
+
+  qz_cell_t* cell = qz_to_cell(vec);
+  if(cell->value.array.size == 0)
+    return QZ_NULL;
+
+  qz_obj_t result = QZ_NULL;
+  qz_obj_t elem = QZ_NULL;
+
+  for(size_t i = 0; i < cell->value.array.size; i++)
+  {
+    qz_obj_t inner_elem = qz_make_pair(qz_ref(st, QZ_CELL_DATA(cell, qz_obj_t)[i]), QZ_NULL);
+
+    if(qz_is_null(elem)) {
+      result = elem = inner_elem;
+    }
+    else {
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+  }
+
+  qz_unref(st, vec);
+  return result;
+}
+
+QZ_DEF_CFUN(scm_list_a_vector)
+{
+  qz_obj_t list;
+  qz_get_args(st, &args, "a", &list);
+
+  intptr_t len = list_length(list);
+
+  if(len < 0) {
+    qz_unref(st, list);
+    return qz_error(st, "expected list");
+  }
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_VECTOR, len*sizeof(qz_obj_t));
+
+  qz_obj_t elem = list;
+  for(size_t i = 0; i < len; i++) {
+    QZ_CELL_DATA(cell, qz_obj_t)[i] = qz_ref(st, qz_first(elem));
+    elem = qz_rest(elem);
+  }
+
+  qz_unref(st, list);
+
+  return qz_from_cell(cell);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1472,6 +1619,13 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_string_downcase, "string-downcase"},
   {scm_substring, "substring"},
   {scm_string_copy, "string-copy"},
+  {scm_vector_q, "vector?"},
+  {scm_make_vector, "make-vector"},
+  {scm_vector_length, "vector-length"},
+  {scm_vector_ref, "vector-ref"},
+  {scm_vector_set_b, "vector-set!"},
+  {scm_vector_a_list, "vector->list"},
+  {scm_list_a_vector, "list->vector"},
   {scm_write, "write"},
   {NULL, NULL}
 };

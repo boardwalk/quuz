@@ -1351,6 +1351,20 @@ QZ_DEF_CFUN(scm_substring)
   return qz_from_cell(out);
 }
 
+/* TODO string->list */
+
+/* TODO list->string */
+
+static int identity(int i)
+{
+  return i;
+}
+
+QZ_DEF_CFUN(scm_string_copy)
+{
+  return inner_transform_string(st, args, identity);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1453,6 +1467,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_string_upcase, "string-upcase"},
   {scm_string_downcase, "string-downcase"},
   {scm_substring, "substring"},
+  {scm_string_copy, "string-copy"},
   {scm_write, "write"},
   {NULL, NULL}
 };

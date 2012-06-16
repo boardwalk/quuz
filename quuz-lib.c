@@ -485,23 +485,26 @@ static qz_obj_t interpolate_one(qz_state_t* st, qz_obj_t obj, int level, int* sp
   if(qz_is_pair(obj))
   {
     if(qz_eqv(qz_first(obj), st->quasiquote_sym))
-      return interpolate(st, qz_first(qz_rest(obj)), level + 1);
+    {
+      obj = qz_first(qz_ref(obj));
+      return interpolate(st, obj, level + 1);
+    }
 
     if(qz_eqv(qz_first(obj), st->unquote_sym))
     {
       obj = qz_first(qz_rest(obj));
-      if(level)
-	return interpolate(st, obj, level - 1);
-      return qz_eval(st, obj);
+      if(!level)
+        return qz_eval(st, obj);
+      return interpolate(st, obj, level - 1);
     }
 
     if(qz_eqv(qz_first(obj), st->unquote_splicing_sym))
     {
       *splice = 1;
       obj = qz_first(qz_rest(obj));
-      if(level)
-	return interpolate(st, obj, level - 1);
-      return qz_eval(st, obj);
+      if(!level)
+        return qz_eval(st, obj);
+      return interpolate(st, obj, level - 1);
     }
   }
 
@@ -521,8 +524,8 @@ static qz_obj_t interpolate_list(qz_state_t* st, qz_obj_t in, int level)
 
     if(splice) {
       if(!qz_is_pair(obj)) {
-	qz_unref(st, obj);
-	return qz_error(st, "can only unquote-splice proper list");
+        qz_unref(st, obj);
+        return qz_error(st, "can only unquote-splice proper list");
       }
     }
     else {
@@ -540,7 +543,7 @@ static qz_obj_t interpolate_list(qz_state_t* st, qz_obj_t in, int level)
     if(splice) {
       out = list_tail(obj);
       if(!qz_is_pair(out))
-	return qz_error(st, "can only unquote-splice proper list");
+        return qz_error(st, "can only unquote-splice proper list");
     }
     else {
       out = obj;
@@ -1402,7 +1405,7 @@ static int compare_string(qz_obj_t a, qz_obj_t b, memcmp_fun mcf)
   qz_cell_t* b_cell = qz_to_cell(b);
 
   int cmp = mcf(QZ_CELL_DATA(a_cell, char), QZ_CELL_DATA(b_cell, char),
-		min(a_cell->value.array.size, b_cell->value.array.size));
+                min(a_cell->value.array.size, b_cell->value.array.size));
 
   if(cmp == 0)
     return a_cell->value.array.size - b_cell->value.array.size;
@@ -1523,8 +1526,8 @@ QZ_DEF_CFUN(scm_substring)
   qz_cell_t* out = qz_make_cell(QZ_CT_STRING, (end_raw-start_raw)*sizeof(char));
 
   memcpy(QZ_CELL_DATA(out, char),
-	 QZ_CELL_DATA(in, char) + start_raw,
-	 (end_raw-start_raw)*sizeof(char));
+         QZ_CELL_DATA(in, char) + start_raw,
+         (end_raw-start_raw)*sizeof(char));
 
   qz_unref(st, str);
 

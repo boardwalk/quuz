@@ -469,6 +469,132 @@ QZ_DEF_CFUN(scm_begin)
   }
 }
 
+/* 4.2.8. Quasiquotation */
+
+static qz_obj_t list_tail(qz_obj_t obj)
+{
+  return QZ_NULL;
+}
+
+static qz_obj_t interpolate(qz_state_t*, qz_obj_t, int);
+
+static qz_obj_t interpolate_one(qz_state_t* st, qz_obj_t obj, int level, int* splice)
+{
+  *splice = 0;
+
+  if(qz_is_pair(obj))
+  {
+    if(qz_eqv(qz_first(obj), st->quasiquote_sym))
+      return interpolate(st, qz_first(qz_rest(obj)), level + 1);
+
+    if(qz_eqv(qz_first(obj), st->unquote_sym))
+    {
+      obj = qz_first(qz_rest(obj));
+      if(level)
+	return interpolate(st, obj, level - 1);
+      return qz_eval(st, obj);
+    }
+
+    if(qz_eqv(qz_first(obj), st->unquote_splicing_sym))
+    {
+      *splice = 1;
+      obj = qz_first(qz_rest(obj));
+      if(level)
+	return interpolate(st, obj, level - 1);
+      return qz_eval(st, obj);
+    }
+  }
+
+  return qz_ref(st, obj);
+}
+
+static qz_obj_t interpolate_list(qz_state_t* st, qz_obj_t in, int level)
+{
+  qz_obj_t result = QZ_NULL;
+  qz_obj_t out;
+
+  for(;;) {
+    qz_obj_t obj = qz_first(in);
+
+    int splice;
+    obj = interpolate_one(st, obj, level, &splice);
+
+    if(splice) {
+      if(!qz_is_pair(obj)) {
+	qz_unref(st, obj);
+	return qz_error(st, "can only unquote-splice proper list");
+      }
+    }
+    else {
+      obj = qz_make_pair(obj, QZ_NULL);
+    }
+
+    if(qz_is_null(result)) {
+      result = obj;
+      qz_push_safety(st, result);
+    }
+    else {
+      qz_to_pair(out)->rest = obj;
+    }
+
+    if(splice) {
+      out = list_tail(obj);
+      if(!qz_is_pair(out))
+	return qz_error(st, "can only unquote-splice proper list");
+    }
+    else {
+      out = obj;
+    }
+
+    in = qz_rest(in);
+    if(!qz_is_pair(in))
+      break;
+  }
+
+  if(!qz_is_null(result))
+    qz_pop_safety(st, 1);
+
+  return result;
+}
+
+static qz_obj_t interpolate_vector(qz_state_t* st, qz_obj_t in, int level)
+{
+  qz_cell_t* in_cell = qz_to_cell(in);
+  size_t len = in_cell->value.array.size;
+
+  qz_cell_t* out_cell = qz_make_cell(QZ_CT_VECTOR, len*sizeof(qz_obj_t));
+  qz_push_safety(st, qz_from_cell(out_cell));
+
+  for(size_t i = 0; i < len; i++)
+  {
+    qz_obj_t obj = QZ_CELL_DATA(in_cell, qz_obj_t)[i];
+
+    int splice;
+    obj = interpolate_one(st, obj, level, &splice);
+
+    QZ_CELL_DATA(out_cell, qz_obj_t)[i] = obj;
+  }
+
+  qz_pop_safety(st, 1);
+  return qz_from_cell(out_cell);
+}
+
+static qz_obj_t interpolate(qz_state_t* st, qz_obj_t in, int level)
+{
+  if(qz_is_pair(in))
+    return interpolate_list(st, in, level);
+
+  if(qz_is_vector(in))
+    return interpolate_vector(st, in, level);
+
+  return qz_ref(st, in);
+}
+
+QZ_DEF_CFUN(scm_quasiquote)
+{
+  return interpolate(st, qz_first(args), 0);
+}
+
 /******************************************************************************
  * 5.2. Definitions
  ******************************************************************************/
@@ -1688,6 +1814,8 @@ QZ_DEF_CFUN(scm_procedure_q)
   return predicate(st, args, is_procedure);
 }
 
+/* TODO apply */
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1714,6 +1842,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_let, "let"},
   {scm_let_s, "let*"},
   {scm_begin, "begin"},
+  {scm_quasiquote, "quasiquote"},
   {scm_define, "define"},
   {scm_eq_q, "eq?"},
   {scm_eqv_q, "eqv?"},

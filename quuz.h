@@ -118,6 +118,11 @@ typedef struct qz_state {
 
   /* "=>" sym, used in "cond" */
   qz_obj_t arrow_sym;
+
+  /* symbols used in "quasiquote" */
+  qz_obj_t quasiquote_sym;
+  qz_obj_t unquote_sym;
+  qz_obj_t unquote_splicing_sym;
 } qz_state_t;
 
 typedef qz_obj_t (*qz_cfun_t)(qz_state_t* st, qz_obj_t args);

@@ -70,6 +70,54 @@ static qz_obj_t compare_many(qz_state_t* st, qz_obj_t args, pred_fun pf, cmp_fun
   }
 }
 
+/* generic function for string-ref, vector-ref, and bytevector-ref */
+typedef qz_obj_t (*getelem_fun)(qz_state_t*, qz_cell_t*, size_t);
+
+static qz_obj_t array_ref(qz_state_t* st, qz_obj_t args, const char* type_spec, getelem_fun gef)
+{
+  qz_obj_t obj, k;
+  qz_get_args(st, &args, type_spec, &obj, &k);
+
+  intptr_t k_raw = qz_to_fixnum(k);
+
+  qz_cell_t* cell = qz_to_cell(obj);
+  if(k_raw < 0 || k_raw >= cell->value.array.size) {
+    qz_unref(st, obj);
+    return qz_error(st, "index out of bounds");
+  }
+
+  qz_obj_t result = gef(st, cell, k_raw);
+  qz_unref(st, obj);
+  return result;
+}
+
+/* generic function for string-set!, vector-set!, and bytevector-set! */
+typedef void (*setelem_fun)(qz_state_t*, qz_cell_t*, size_t, qz_obj_t);
+
+static qz_obj_t array_set(qz_state_t* st, qz_obj_t args, const char* type_spec, setelem_fun sef)
+{
+  /* TODO add immutable flag to strings,
+   * set for strings converted from symbols
+   * check here and elsewhere and throw an error */
+
+  qz_obj_t arr, k, obj;
+  qz_get_args(st, &args, type_spec, &arr, &k, &obj);
+
+  intptr_t k_raw = qz_to_fixnum(k);
+
+  qz_cell_t* cell = qz_to_cell(arr);
+  if(k_raw < 0 || k_raw >= cell->value.array.size) {
+    qz_unref(st, arr);
+    return qz_error(st, "index out of bounds");
+  }
+
+  sef(st, cell, k_raw, obj);
+  qz_unref(st, arr);
+  return QZ_NONE;
+}
+
+
+
 QZ_DEF_CFUN(scm_begin);
 
 /******************************************************************************
@@ -1185,44 +1233,25 @@ QZ_DEF_CFUN(scm_string_length)
   return array_length(st, args, "s");
 }
 
+
+static qz_obj_t string_ref(qz_state_t* st, qz_cell_t* cell, size_t i)
+{
+  return qz_from_char(QZ_CELL_DATA(cell, char)[i]);
+}
+
 QZ_DEF_CFUN(scm_string_ref)
 {
-  qz_obj_t str, k;
-  qz_get_args(st, &args, "si", &str, &k);
+  return array_ref(st, args, "si", string_ref);
+}
 
-  intptr_t k_raw = qz_to_fixnum(k);
-
-  qz_cell_t* cell = qz_to_cell(str);
-  if(k_raw < 0 || k_raw >= cell->value.array.size) {
-    qz_unref(st, str);
-    return qz_error(st, "index out of bounds");
-  }
-
-  char ch = QZ_CELL_DATA(cell, char)[k_raw];
-  qz_unref(st, str);
-  return qz_from_char(ch);
+static void string_set(qz_state_t* st, qz_cell_t* cell, size_t i, qz_obj_t obj)
+{
+  QZ_CELL_DATA(cell, char)[i] = qz_to_char(obj);
 }
 
 QZ_DEF_CFUN(scm_string_set_b)
 {
-  /* TODO add immutable flag to strings,
-   * set for strings converted from symbols
-   * check here and elsewhere and throw an error */
-
-  qz_obj_t str, k, ch;
-  qz_get_args(st, &args, "sic", &str, &k, &ch);
-
-  intptr_t k_raw = qz_to_fixnum(k);
-
-  qz_cell_t* cell = qz_to_cell(k);
-  if(k_raw < 0 || k_raw >= cell->value.array.size) {
-    qz_unref(st, str);
-    return qz_error(st, "index out of bounds");
-  }
-
-  QZ_CELL_DATA(cell, char)[k_raw] = qz_to_char(ch);
-  qz_unref(st, str);
-  return QZ_NONE;
+  return array_set(st, args, "sic", string_set);
 }
 
 static int min(size_t a, size_t b)
@@ -1430,41 +1459,26 @@ QZ_DEF_CFUN(scm_vector_length)
   return array_length(st, args, "v");
 }
 
+static qz_obj_t vector_ref(qz_state_t* st, qz_cell_t* cell, size_t i)
+{
+  return qz_ref(st, QZ_CELL_DATA(cell, qz_obj_t)[i]);
+}
+
 QZ_DEF_CFUN(scm_vector_ref)
 {
-  qz_obj_t vec, k;
-  qz_get_args(st, &args, "vi", &vec, &k);
+  return array_ref(st, args, "vi", vector_ref);
+}
 
-  intptr_t k_raw = qz_to_fixnum(k);
-
-  qz_cell_t* cell = qz_to_cell(vec);
-  if(k_raw < 0 || k_raw >= cell->value.array.size) {
-    qz_unref(st, vec);
-    return qz_error(st, "index out of bounds");
-  }
-
-  qz_obj_t obj = QZ_CELL_DATA(cell, qz_obj_t)[k_raw];
-  qz_unref(st, vec);
-  return qz_ref(st, obj);
+static void vector_set(qz_state_t* st, qz_cell_t* cell, size_t i, qz_obj_t obj)
+{
+  qz_obj_t* slot = QZ_CELL_DATA(cell, qz_obj_t) + i;
+  qz_unref(st, *slot);
+  *slot = obj;
 }
 
 QZ_DEF_CFUN(scm_vector_set_b)
 {
-  qz_obj_t vec, k, obj;
-  qz_get_args(st, &args, "via", &vec, &k, &obj);
-
-  intptr_t k_raw = qz_to_fixnum(k);
-
-  qz_cell_t* cell = qz_to_cell(vec);
-  if(k_raw < 0 || k_raw >= cell->value.array.size) {
-    qz_unref(st, vec);
-    return qz_error(st, "index out of bounds");
-  }
-
-  qz_obj_t* slot = QZ_CELL_DATA(cell, qz_obj_t) + k_raw;
-  qz_unref(st, *slot);
-  *slot = obj;
-  return QZ_NONE;
+  return array_set(st, args, "via", vector_set);
 }
 
 QZ_DEF_CFUN(scm_vector_a_list)
@@ -1636,6 +1650,26 @@ QZ_DEF_CFUN(scm_bytevector_length)
   return array_length(st, args, "w");
 }
 
+static qz_obj_t bytevector_ref(qz_state_t* st, qz_cell_t* cell, size_t i)
+{
+  return qz_from_fixnum(QZ_CELL_DATA(cell, uint8_t)[i]);
+}
+
+QZ_DEF_CFUN(scm_bytevector_u8_ref)
+{
+  return array_ref(st, args, "wi", bytevector_ref);
+}
+
+static void bytevector_set(qz_state_t* st, qz_cell_t* cell, size_t i, qz_obj_t obj)
+{
+  QZ_CELL_DATA(cell, uint8_t)[i] = qz_to_fixnum(obj);
+}
+
+QZ_DEF_CFUN(scm_bytevector_u8_set_b)
+{
+  return array_set(st, args, "wii", bytevector_set);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1752,6 +1786,8 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_bytevector_q, "bytevector?"},
   {scm_make_bytevector, "make-bytevector"},
   {scm_bytevector_length, "bytevector-length"},
+  {scm_bytevector_u8_ref, "bytevector-u8-ref"},
+  {scm_bytevector_u8_set_b, "bytevector-u8-set!"},
   {scm_write, "write"},
   {NULL, NULL}
 };

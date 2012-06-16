@@ -1670,6 +1670,24 @@ QZ_DEF_CFUN(scm_bytevector_u8_set_b)
   return array_set(st, args, "wii", bytevector_set);
 }
 
+/* TODO bytevector-copy-partial */
+
+/* TODO bytevector-copy-partial! */
+
+/******************************************************************************
+ * 6.10. Control features
+ ******************************************************************************/
+
+static int is_procedure(qz_obj_t obj)
+{
+  return qz_is_cfun(obj) || qz_is_fun(obj);
+}
+
+QZ_DEF_CFUN(scm_procedure_q)
+{
+  return predicate(st, args, is_procedure);
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -1788,6 +1806,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_bytevector_length, "bytevector-length"},
   {scm_bytevector_u8_ref, "bytevector-u8-ref"},
   {scm_bytevector_u8_set_b, "bytevector-u8-set!"},
+  {scm_procedure_q, "procedure?"},
   {scm_write, "write"},
   {NULL, NULL}
 };

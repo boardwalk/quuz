@@ -68,16 +68,16 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...)
 
       /* check argument type */
       if(!is_type(*obj, *s)) {
-	char msg[64];
-	sprintf(msg, "expected %s at argument %ld\n", type_name(*s), nargs);
-	qz_error(st, msg);
+        char msg[64];
+        sprintf(msg, "expected %s at argument %ld\n", type_name(*s), nargs);
+        qz_error(st, msg);
       }
     }
     else if(qz_is_null(*args))  {
       if(*(s + 1) == '?') {
-	*obj = QZ_NONE;
-	s++; /* skip ? */
-	continue; /* missing optional argument */
+        *obj = QZ_NONE;
+        s++; /* skip ? */
+        continue; /* missing optional argument */
       }
       char msg[64];
       sprintf(msg, "missing %s at argument %ld\n", type_name(*s), nargs);

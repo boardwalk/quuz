@@ -8,7 +8,7 @@ sub parse {
   with_valgrind($data, "./quuz", "-p");
 }
 
-filters { input => 'parse', expected => 'chomp' };
+filters { input => 'parse' };
 
 __END__
 
@@ -53,8 +53,10 @@ bloggie berf")
 === Dotted list
 --- input
 (a . b)
+(a b . (c d e))
 --- expected
 (a . b)
+(a b c d e)
 
 === Abbreviations
 --- input

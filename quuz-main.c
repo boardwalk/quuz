@@ -52,6 +52,7 @@ int main(int argc, char* argv[])
     if(mode == PARSE)
     {
       qz_write(st, obj, -1, stdout);
+      fputc('\n', stdout);
     }
     else if(mode == RUN)
     {

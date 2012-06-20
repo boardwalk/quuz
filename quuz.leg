@@ -234,7 +234,7 @@ compoundDatum = list
   | vector
 
 list = {push_pair();} listBeginToken datum* listEndToken {pop();}
-  | {push_pair();} listBeginToken datum+ dotToken {g_dotted_datum = 1;} datum listEndToken {pop();}
+  | {push_pair();} listBeginToken datum+ dotToken datum listEndToken {elide_pair();pop();}
   | abbreviation
 
 abbreviation = {push_pair();} abbrevPrefix datum {pop();}

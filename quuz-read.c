@@ -15,7 +15,6 @@
 static qz_state_t* g_st = NULL;
 static FILE* g_fp = NULL;
 static qz_obj_t g_stack;
-static int g_dotted_datum = 0;
 
 static qz_obj_t make_array(qz_cell_type_t type, size_t elem_size)
 {
@@ -94,9 +93,7 @@ static void append(qz_obj_t value_obj)
 {
   qz_obj_t* obj = qz_vector_tail_ptr(g_stack);
 
-  /*printf("append(%lu)\n", value_obj.value);
-  printf("  stack obj: "); qz_write(*obj, -1, stdout); fputc('\n', stdout);
-  printf("  value obj: "); qz_write(value_obj, -1, stdout); fputc('\n', stdout);*/
+  /*printf("append(%lu)\n", value_obj.value);*/
 
   if(qz_is_null(*obj))
   {
@@ -111,15 +108,8 @@ static void append(qz_obj_t value_obj)
     while(!qz_is_null(pair->rest))
       pair = qz_to_pair(pair->rest);
 
-    if(g_dotted_datum) {
-      g_dotted_datum = 0;
-      /* append directly */
-      pair->rest = value_obj;
-    }
-    else {
-      /* wrap in another cell and append */
-      pair->rest = qz_make_pair(value_obj, QZ_NULL);
-    }
+    /* wrap in another cell and append */
+    pair->rest = qz_make_pair(value_obj, QZ_NULL);
   }
   else if(qz_is_vector(*obj))
   {
@@ -185,6 +175,31 @@ static void pop_sym(void)
   qz_obj_t obj = QZ_CELL_DATA(stack_cell, qz_obj_t)[--stack_cell->value.array.size];
 
   append(qz_make_sym(g_st, obj));
+}
+
+/* (a b c) -> (a b . c) */
+static void elide_pair(void)
+{
+  /*printf("elide_pair();\n");*/
+
+  qz_cell_t* stack_cell = qz_to_cell(g_stack);
+
+  qz_obj_t prev;
+  qz_obj_t curr = QZ_CELL_DATA(stack_cell, qz_obj_t)[stack_cell->value.array.size - 1];
+
+  for(;;) {
+    qz_pair_t* pair = qz_to_pair(curr);
+
+    if(qz_is_null(pair->rest)) {
+      qz_to_pair(prev)->rest = pair->first;
+      pair->first = QZ_NULL;
+      free(qz_to_cell(curr)); /* TODO not kosher */
+      break;
+    }
+
+    prev = curr;
+    curr = pair->rest;
+  }
 }
 
 /* push a pair onto the stack */

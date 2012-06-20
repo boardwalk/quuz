@@ -176,3 +176,25 @@ unspecified
 --- expected
 70
 
+=== Begin
+--- input
+(define x 0)
+(and (= x 0)
+     (begin (set! x 5)
+            (+ x 1)))
+;(begin (display "4 plus 1 equals ")
+;       (display (+ 4 1)))
+--- expected
+6
+
+=== Quasiquotation
+TODO not complete
+--- input
+`(list ,(+ 1 2) 4)
+`((foo ,(- 10 3)) ,@(cdr '(c)) . ,(car '(cons)))
+`#(10 5 ,(+ 1 3))
+
+--- expected
+(list 3 4)
+((foo 7) . cons)
+#(10 5 4)

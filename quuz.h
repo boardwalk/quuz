@@ -120,6 +120,7 @@ typedef struct qz_state {
   qz_obj_t arrow_sym;
 
   /* symbols used in "quasiquote" */
+  qz_obj_t quote_sym;
   qz_obj_t quasiquote_sym;
   qz_obj_t unquote_sym;
   qz_obj_t unquote_splicing_sym;

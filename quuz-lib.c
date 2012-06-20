@@ -471,87 +471,95 @@ QZ_DEF_CFUN(scm_begin)
 
 /* 4.2.8. Quasiquotation */
 
-static qz_obj_t list_tail(qz_obj_t obj)
+static qz_obj_t list_tail(qz_state_t* st, qz_obj_t obj)
 {
-  return QZ_NULL;
+  for(;;) {
+    qz_obj_t rest = qz_rest(obj);
+    if(qz_is_null(rest))
+      return obj;
+    if(!qz_is_pair(rest))
+      return qz_error(st, "expected list");
+    obj = rest;
+  }
 }
 
-static qz_obj_t interpolate(qz_state_t*, qz_obj_t, int);
+static qz_obj_t qq(qz_state_t*, qz_obj_t, int);
 
-static qz_obj_t interpolate_one(qz_state_t* st, qz_obj_t obj, int level, int* splice)
+static qz_obj_t qq_or_splice(qz_state_t* st, qz_obj_t in, int depth, int* splice)
 {
   *splice = 0;
 
-  if(qz_is_pair(obj))
-  {
-    if(qz_eqv(qz_first(obj), st->quasiquote_sym))
-    {
-      obj = qz_first(qz_ref(obj));
-      return interpolate(st, obj, level + 1);
-    }
-
-    if(qz_eqv(qz_first(obj), st->unquote_sym))
-    {
-      obj = qz_first(qz_rest(obj));
-      if(!level)
-        return qz_eval(st, obj);
-      return interpolate(st, obj, level - 1);
-    }
-
-    if(qz_eqv(qz_first(obj), st->unquote_splicing_sym))
-    {
-      *splice = 1;
-      obj = qz_first(qz_rest(obj));
-      if(!level)
-        return qz_eval(st, obj);
-      return interpolate(st, obj, level - 1);
-    }
+  /* <qq template or splice D> -> <splicing unquotation D>
+   * <splicing unquotation D> -> (unquote-splicing <qq template D - 1>) */
+  if(qz_is_pair(in) && qz_eqv(qz_first(in), st->unquote_splicing_sym)) {
+    *splice = 1;
+    return qq(st, qz_first(qz_rest(in)), depth - 1);
   }
 
-  return qz_ref(st, obj);
+  /* <qq template or splice D> -> <qq template D> */
+  return qq(st, in, depth);
 }
 
-static qz_obj_t interpolate_list(qz_state_t* st, qz_obj_t in, int level)
+static intptr_t list_length(qz_obj_t obj);
+
+static qz_obj_t qq_list(qz_state_t* st, qz_obj_t in, int depth)
 {
+  qz_obj_t obj = qz_first(in);
+  in = qz_rest(in);
+
+  /* <unquotation D> -> (unquote <qq template D - 1>) */
+  if(qz_eqv(obj, st->unquote_sym))
+    return qq(st, qz_first(in), depth - 1);
+
+  /* <list qq template D> -> (quote <qq template D>) */
+  if(qz_eqv(obj, st->quote_sym))
+    return qq(st, qz_first(in), depth);
+
+  /* <list qq template D> -> (quasiquote <qq template D + 1>) */
+  if(qz_eqv(obj, st->quasiquote_sym))
+    return qq(st, qz_first(in), depth + 1);
+
+  /* <list qq template D> -> (<qq template or splice D>*)
+   *   | (<qq template or splice D>+ . <qq template D>) */
   qz_obj_t result = QZ_NULL;
   qz_obj_t out;
 
-  for(;;) {
-    qz_obj_t obj = qz_first(in);
-
+  for(;;)
+  {
     int splice;
-    obj = interpolate_one(st, obj, level, &splice);
-
-    if(splice) {
-      if(!qz_is_pair(obj)) {
-        qz_unref(st, obj);
-        return qz_error(st, "can only unquote-splice proper list");
-      }
-    }
-    else {
+    obj = qq_or_splice(st, obj, depth, &splice);
+    if(!splice)
       obj = qz_make_pair(obj, QZ_NULL);
+
+    if(!(splice && qz_is_null(obj)))
+    {
+      if(qz_is_null(result)) {
+        result = obj;
+        qz_push_safety(st, result);
+      }
+      else {
+        qz_to_pair(out)->rest = obj;
+      }
+
+      out = qz_is_pair(obj) ? list_tail(st, obj) : obj;
     }
 
-    if(qz_is_null(result)) {
-      result = obj;
-      qz_push_safety(st, result);
-    }
-    else {
-      qz_to_pair(out)->rest = obj;
+    if(qz_is_null(in))
+      break; /* ran out of elements in proper list */
+
+    /* ugly special cases */
+    if(!qz_is_pair(in)) {
+      qz_to_pair(out)->rest = qq(st, in, depth);
+      break; /* ran out of elements in improper list */
     }
 
-    if(splice) {
-      out = list_tail(obj);
-      if(!qz_is_pair(out))
-        return qz_error(st, "can only unquote-splice proper list");
-    }
-    else {
-      out = obj;
+    if(qz_eqv(qz_first(in), st->unquote_sym) && list_length(in) == 2) {
+      qz_to_pair(out)->rest = qq(st, in, depth);
+      break; /* trailing unquote in improper list */
     }
 
+    obj = qz_first(in);
     in = qz_rest(in);
-    if(!qz_is_pair(in))
-      break;
   }
 
   if(!qz_is_null(result))
@@ -560,12 +568,16 @@ static qz_obj_t interpolate_list(qz_state_t* st, qz_obj_t in, int level)
   return result;
 }
 
-static qz_obj_t interpolate_vector(qz_state_t* st, qz_obj_t in, int level)
+static qz_obj_t qq_vector(qz_state_t* st, qz_obj_t in, int depth)
 {
+  /* <vector qq template D> -> #(<qq template or splice D>*) */
   qz_cell_t* in_cell = qz_to_cell(in);
   size_t len = in_cell->value.array.size;
 
   qz_cell_t* out_cell = qz_make_cell(QZ_CT_VECTOR, len*sizeof(qz_obj_t));
+  out_cell->value.array.size = len;
+  out_cell->value.array.capacity = len;
+
   qz_push_safety(st, qz_from_cell(out_cell));
 
   for(size_t i = 0; i < len; i++)
@@ -573,7 +585,9 @@ static qz_obj_t interpolate_vector(qz_state_t* st, qz_obj_t in, int level)
     qz_obj_t obj = QZ_CELL_DATA(in_cell, qz_obj_t)[i];
 
     int splice;
-    obj = interpolate_one(st, obj, level, &splice);
+    obj = qq_or_splice(st, obj, depth, &splice);
+
+    /* TODO support splicing into vectors */
 
     QZ_CELL_DATA(out_cell, qz_obj_t)[i] = obj;
   }
@@ -582,20 +596,30 @@ static qz_obj_t interpolate_vector(qz_state_t* st, qz_obj_t in, int level)
   return qz_from_cell(out_cell);
 }
 
-static qz_obj_t interpolate(qz_state_t* st, qz_obj_t in, int level)
+static qz_obj_t qq(qz_state_t* st, qz_obj_t in, int depth)
 {
+  /* <qq template 0> -> <expression> */
+  if(depth == 0)
+    return qz_eval(st, in);
+
+  /* <qq template D> -> <list qq template D>
+   *   | <unquotation D> */
   if(qz_is_pair(in))
-    return interpolate_list(st, in, level);
+    return qq_list(st, in, depth);
 
+  /* <qq template D> -> <vector qq template D> */
   if(qz_is_vector(in))
-    return interpolate_vector(st, in, level);
+    return qq_vector(st, in, depth);
 
+  /* <qq template D> -> <simple datum> */
   return qz_ref(st, in);
 }
 
 QZ_DEF_CFUN(scm_quasiquote)
 {
-  return interpolate(st, qz_first(args), 0);
+  /* <quasiquotation> -> <quasiquotation 1>
+   * <quasiquotation D> -> (quasiquote <qq template D>) */
+  return qq(st, qz_first(args), 1);
 }
 
 /******************************************************************************

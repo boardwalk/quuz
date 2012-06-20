@@ -23,6 +23,7 @@ qz_state_t* qz_alloc(void)
   st->begin_sym = qz_make_sym(st, qz_make_string("begin"));
   st->else_sym = qz_make_sym(st, qz_make_string("else"));
   st->arrow_sym = qz_make_sym(st, qz_make_string("=>"));
+  st->quote_sym = qz_make_sym(st, qz_make_string("quote"));
   st->quasiquote_sym = qz_make_sym(st, qz_make_string("quasiquote"));
   st->unquote_sym = qz_make_sym(st, qz_make_string("unquote"));
   st->unquote_splicing_sym = qz_make_sym(st, qz_make_string("unquote-splicing"));
@@ -65,7 +66,7 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
     /* print error */
     fprintf(stderr, "Error: %s\n", st->error_msg);
     fputs("Context: ", stderr);
-    qz_write(st, obj, 3, stderr);
+    qz_write(st, obj, 5, stderr);
     fputc('\n', stderr);
     free(st->error_msg);
 

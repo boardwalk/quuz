@@ -6,20 +6,22 @@
 static const char* type_name(qz_cell_type_t ct)
 {
   switch(ct) {
-    case QZ_CT_PAIR:
-      return "pair";
-    case QZ_CT_FUN:
-      return "fun";
-    case QZ_CT_STRING:
-      return "string";
-    case QZ_CT_VECTOR:
-      return "vector";
-    case QZ_CT_BYTEVECTOR:
-      return "bytevector";
-    case QZ_CT_HASH:
-      return "hash";
-    case QZ_CT_REAL:
-      return "real";
+  case QZ_CT_PAIR:
+    return "pair";
+  case QZ_CT_FUN:
+    return "fun";
+  case QZ_CT_PROMISE:
+    return "promise";
+  case QZ_CT_STRING:
+    return "string";
+  case QZ_CT_VECTOR:
+    return "vector";
+  case QZ_CT_BYTEVECTOR:
+    return "bytevector";
+  case QZ_CT_HASH:
+    return "hash";
+  case QZ_CT_REAL:
+    return "real";
   }
   return "unknown";
 }
@@ -27,14 +29,14 @@ static const char* type_name(qz_cell_type_t ct)
 static const char* color_name(qz_cell_color_t cc)
 {
   switch(cc) {
-    case QZ_CC_BLACK:
-      return "black";
-    case QZ_CC_GRAY:
-      return "gray";
-    case QZ_CC_WHITE:
-      return "white";
-    case QZ_CC_PURPLE:
-      return "purple";
+  case QZ_CC_BLACK:
+    return "black";
+  case QZ_CC_GRAY:
+    return "gray";
+  case QZ_CC_WHITE:
+    return "white";
+  case QZ_CC_PURPLE:
+    return "purple";
   }
   return "unknown";
 }
@@ -102,6 +104,20 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     }
 
     fputc(')', fp);
+    *need_space = 1;
+  }
+  else if(qz_type(cell) == QZ_CT_PROMISE)
+  {
+    qz_pair_t* pair = &cell->value.pair;
+
+    if(*need_space) fputc(' ', fp);
+    fputs("[promise ", fp);
+    fputs(qz_is_none(pair->first) ? "(forced)" : "(unforced)", fp);
+    *need_space = 1;
+
+    inner_write(st, pair->rest, depth, fp, need_space);
+
+    fputc(']', fp);
     *need_space = 1;
   }
   else if(qz_type(cell) == QZ_CT_FUN)

@@ -35,6 +35,7 @@ typedef enum {
 typedef enum {
   QZ_CT_PAIR, /* qz_pair_t */
   QZ_CT_FUN, /* qz_pair_t, environment in first, formals & body in rest */
+  QZ_CT_PROMISE, /* qz_pair_t, environment in first, expr in rest */
   QZ_CT_STRING, /* qz_array_t with char elements follows qz_cell_t */
   QZ_CT_VECTOR, /* qz_array_t with qz_obj_t elements */
   QZ_CT_BYTEVECTOR, /* qz_array_t with uint8_t elements */
@@ -151,6 +152,7 @@ int qz_is_char(qz_obj_t);
 int qz_is_none(qz_obj_t);
 int qz_is_pair(qz_obj_t);
 int qz_is_fun(qz_obj_t);
+int qz_is_promise(qz_obj_t);
 int qz_is_string(qz_obj_t);
 int qz_is_vector(qz_obj_t);
 int qz_is_bytevector(qz_obj_t);
@@ -165,6 +167,7 @@ int qz_to_bool(qz_obj_t);
 char qz_to_char(qz_obj_t);
 qz_pair_t* qz_to_pair(qz_obj_t);
 qz_pair_t* qz_to_fun(qz_obj_t);
+qz_pair_t* qz_to_promise(qz_obj_t);
 double qz_to_real(qz_obj_t);
 
 qz_obj_t qz_from_fixnum(intptr_t);

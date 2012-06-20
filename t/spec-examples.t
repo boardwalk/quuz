@@ -187,6 +187,15 @@ unspecified
 --- expected
 6
 
+=== Lazy evluation
+--- input
+(force (delay (+ 1 2)))
+(let ((p (delay (+ 1 2))))
+     (list (force p) (force p)))
+--- expected
+3
+(3 3)
+
 === Quasiquotation
 TODO not complete
 --- input

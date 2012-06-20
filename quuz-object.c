@@ -47,6 +47,9 @@ int qz_is_pair(qz_obj_t obj) {
 int qz_is_fun(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_FUN);
 }
+int qz_is_promise(qz_obj_t obj) {
+  return cell_of_type(obj, QZ_CT_PROMISE);
+}
 int qz_is_string(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_STRING);
 }
@@ -94,6 +97,10 @@ qz_pair_t* qz_to_pair(qz_obj_t obj) {
 }
 qz_pair_t* qz_to_fun(qz_obj_t obj) {
   assert(qz_is_fun(obj));
+  return &qz_to_cell(obj)->value.pair;
+}
+qz_pair_t* qz_to_promise(qz_obj_t obj) {
+  assert(qz_is_promise(obj));
   return &qz_to_cell(obj)->value.pair;
 }
 double qz_to_real(qz_obj_t obj) {
@@ -326,7 +333,7 @@ int qz_equal(qz_obj_t a, qz_obj_t b)
   if(a_type != b_type)
     return 0;
 
-  if(a_type == QZ_CT_PAIR || a_type == QZ_CT_FUN)
+  if(a_type == QZ_CT_PAIR || a_type == QZ_CT_FUN || a_type == QZ_CT_PROMISE)
   {
     /* recusively compare pairs */
     return qz_equal(a_cell->value.pair.first, b_cell->value.pair.first)

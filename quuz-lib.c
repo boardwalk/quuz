@@ -468,6 +468,77 @@ QZ_DEF_CFUN(scm_begin)
     result = qz_eval(st, expr);
   }
 }
+/* 4.2.5. Delayed evaluation */
+QZ_DEF_CFUN(scm_delay)
+{
+  qz_obj_t expr = qz_required_arg(st, &args);
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_PROMISE, 0);
+  cell->value.pair.first = qz_ref(st, qz_first(st->env));
+  cell->value.pair.rest = qz_ref(st, expr);
+
+  return qz_from_cell(cell);
+}
+
+QZ_DEF_CFUN(scm_lazy)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "q", &obj);
+
+  return obj;
+}
+
+QZ_DEF_CFUN(scm_force)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "q", &obj);
+
+  qz_pair_t* pair = qz_to_promise(obj);
+
+  if(qz_is_none(pair->first)) {
+    qz_obj_t result = qz_ref(st, pair->rest);
+    qz_unref(st, obj);
+    return result;
+  }
+
+  qz_push_safety(st, obj);
+
+  /* push environment */
+  qz_obj_t old_env = st->env;
+  st->env = qz_make_pair(qz_ref(st, pair->first), qz_ref(st, st->env));
+  qz_push_safety(st, st->env);
+
+  /* evaluate expression */
+  qz_obj_t result = qz_eval(st, pair->rest);
+
+  /* pop environment */
+  qz_pop_safety(st, 1);
+  qz_unref(st, st->env);
+  st->env = old_env;
+
+  /* replace unforced promise with forced promise */
+  qz_unref(st, pair->first);
+  qz_unref(st, pair->rest);
+  pair->first = QZ_NONE;
+  pair->rest = qz_ref(st, result);
+
+  qz_pop_safety(st, 1);
+  qz_unref(st, obj);
+
+  return result;
+}
+
+QZ_DEF_CFUN(scm_eager)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "a", &obj);
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_PROMISE, 0);
+  cell->value.pair.first = QZ_NONE;
+  cell->value.pair.rest = obj;
+
+  return qz_from_cell(cell);
+}
 
 /* 4.2.8. Quasiquotation */
 
@@ -1869,6 +1940,10 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_let, "let"},
   {scm_let_s, "let*"},
   {scm_begin, "begin"},
+  {scm_delay, "delay"},
+  {scm_lazy, "lazy"},
+  {scm_force, "force"},
+  {scm_eager, "eager"},
   {scm_quasiquote, "quasiquote"},
   {scm_define, "define"},
   {scm_eq_q, "eq?"},

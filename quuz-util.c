@@ -13,6 +13,7 @@ static const char* type_name(char t)
   case 'c': return "char";
   case 'p': return "pair";
   case 'g': return "fun";
+  case 'q': return "promise";
   case 's': return "string";
   case 'v': return "vector";
   case 'w': return "bytevector";
@@ -35,6 +36,7 @@ static int is_type(qz_obj_t obj, char t)
   case 'c': return qz_is_char(obj);
   case 'p': return qz_is_pair(obj);
   case 'g': return qz_is_fun(obj);
+  case 'q': return qz_is_promise(obj);
   case 's': return qz_is_string(obj);
   case 'v': return qz_is_vector(obj);
   case 'w': return qz_is_bytevector(obj);
@@ -55,7 +57,6 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...)
   for(const char* s = spec; *s; s++)
   {
     qz_obj_t* obj = va_arg(ap, qz_obj_t*);
-    nargs++;
 
     if(qz_is_pair(*args)) {
       /* pull argument from list and advance */
@@ -65,12 +66,18 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...)
       /* evaluate argument */
       *obj = qz_eval(st, *obj);
       qz_push_safety(st, *obj);
+      nargs++;
 
       /* check argument type */
       if(!is_type(*obj, *s)) {
         char msg[64];
         sprintf(msg, "expected %s at argument %ld\n", type_name(*s), nargs);
         qz_error(st, msg);
+      }
+
+      if(*(s + 1) == '?') {
+        s++; /* skip ? */
+        /* present optional argument */
       }
     }
     else if(qz_is_null(*args))  {

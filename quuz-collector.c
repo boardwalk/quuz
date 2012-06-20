@@ -30,25 +30,28 @@ static void call_if_valid_cell(qz_state_t* st, qz_obj_t obj, child_func func)
 
 static void all_children(qz_state_t* st, qz_cell_t* cell, child_func func)
 {
-  if(qz_type(cell) == QZ_CT_PAIR || qz_type(cell) == QZ_CT_FUN)
-  {
+  switch(qz_type(cell)) {
+  case QZ_CT_PAIR:
+  case QZ_CT_FUN:
+  case QZ_CT_PROMISE:
     call_if_valid_cell(st, cell->value.pair.first, func);
     call_if_valid_cell(st, cell->value.pair.rest, func);
-  }
-  else if(qz_type(cell) == QZ_CT_VECTOR)
-  {
+    break;
+  case QZ_CT_VECTOR:
     for(size_t i = 0; i < cell->value.array.size; i++) {
       qz_obj_t* obj = QZ_CELL_DATA(cell, qz_obj_t) + i;
       call_if_valid_cell(st, *obj, func);
     }
-  }
-  else if(qz_type(cell) == QZ_CT_HASH)
-  {
+    break;
+  case QZ_CT_HASH:
     for(size_t i = 0; i < cell->value.array.capacity; i++) {
       qz_pair_t* pair = QZ_CELL_DATA(cell, qz_pair_t) + i;
       call_if_valid_cell(st, pair->first, func);
       call_if_valid_cell(st, pair->rest, func);
     }
+    break;
+  default:
+    break;
   }
 }
 

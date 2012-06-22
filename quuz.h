@@ -88,8 +88,8 @@ typedef struct qz_state {
   /* state to restore when an error occurs */
   jmp_buf* error_handler;
 
-  /* message to print after catching an error */
-  char* error_msg;
+  /* object describing the error that occurred */
+  qz_obj_t error_obj;
 
   /* array of objects to unref if a peval() fails */
   size_t safety_buffer_size;

@@ -64,11 +64,15 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   if(setjmp(error_handler))
   {
     /* print error */
-    fprintf(stderr, "Error: %s\n", st->error_msg);
+    fputs("Error: ", stderr);
+    qz_write(st, st->error_obj, -1, stderr);
+    fputc('\n', stderr);
+
     fputs("Context: ", stderr);
     qz_write(st, obj, 5, stderr);
     fputc('\n', stderr);
-    free(st->error_msg);
+
+    qz_unref(st, st->error_obj);
 
     /* cleanup objects in safety buffer */
     assert(st->safety_buffer_size >= old_safety_buffer_size);
@@ -195,7 +199,7 @@ qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym)
 
 qz_obj_t qz_error(qz_state_t* st, const char* msg)
 {
-  st->error_msg = strdup(msg);
+  st->error_obj = qz_make_string(msg);
   longjmp(*st->error_handler, 1);
 }
 

@@ -1,2 +1,2 @@
 * Audit library functions and make sure they don't leak references if qz_error or qz_eval throw.
-
+* Make qz_write resistant to cycles.

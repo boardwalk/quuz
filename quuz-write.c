@@ -316,6 +316,12 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
 
     *need_space = 1;
   }
+  else if(qz_is_none(obj))
+  {
+    if(*need_space) fputc(' ', fp);
+    fputs("[unknown]", fp);
+    *need_space = 1;
+  }
   else
   {
     assert(0); /* unknown tagged pointer type */

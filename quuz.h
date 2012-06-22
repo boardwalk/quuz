@@ -85,15 +85,18 @@ typedef struct qz_state {
   size_t root_buffer_size;
   qz_cell_t* root_buffer[QZ_ROOT_BUFFER_CAPACITY];
 
-  /* state to restore when an error occurs */
-  jmp_buf* error_handler;
-
-  /* object describing the error that occurred */
-  qz_obj_t error_obj;
-
   /* array of objects to unref if a peval() fails */
   size_t safety_buffer_size;
   qz_obj_t safety_buffer[QZ_SAFETY_BUFFER_CAPACITY];
+
+  /* state to restore when an error occurs */
+  jmp_buf* peval_fail;
+
+  /* a handler to call when an occurs */
+  qz_obj_t error_handler;
+
+  /* object describing the error that occurred */
+  qz_obj_t error_obj;
 
   /* variables bindings
    * a list of a list of hashes

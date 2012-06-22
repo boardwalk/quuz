@@ -1918,13 +1918,50 @@ QZ_DEF_CFUN(scm_procedure_q)
  * 6.11. Exceptions
  ******************************************************************************/
 
+/* this is the default error handler
+ * it is also used as a failsafe when executing a user-supplied error handler
+ * it is guaranteed to not throw an exception so we don't get into loop */
+ALIGNED qz_obj_t qz_error_handler(qz_state_t* st, qz_obj_t args)
+{
+  qz_obj_t obj = qz_optional_arg(st, &args);
+
+  fputs("An error was caught: ", stderr);
+  qz_write(st, obj, -1, stderr);
+
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_with_exception_handler)
+{
+  qz_obj_t handler, thunk;
+  qz_get_args(st, &args, "aa", &handler, &thunk);
+
+  thunk = qz_make_pair(thunk, QZ_NULL);
+
+  /* push error handler */
+  qz_obj_t old_handler = st->error_handler;
+  st->error_handler = handler;
+
+  /* eval thunk */
+  qz_obj_t result = qz_peval(st, thunk);
+
+  /* pop error handler */
+  st->error_handler = old_handler;
+
+  /* cleanup */
+  qz_unref(st, handler);
+  qz_unref(st, thunk);
+
+  return result;
+}
+
 QZ_DEF_CFUN(scm_raise)
 {
   qz_obj_t obj;
   qz_get_args(st, &args, "a", &obj);
 
   st->error_obj = obj;
-  longjmp(*st->error_handler, 1);
+  longjmp(*st->peval_fail, 1);
 
   return QZ_NONE;
 }
@@ -2056,6 +2093,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_bytevector_u8_ref, "bytevector-u8-ref"},
   {scm_bytevector_u8_set_b, "bytevector-u8-set!"},
   {scm_procedure_q, "procedure?"},
+  {scm_with_exception_handler, "with-exception-handler"},
   {scm_raise, "raise"},
   {scm_write, "write"},
   {NULL, NULL}

@@ -52,3 +52,16 @@ foo
 --- expected
 "hi"8
 
+=== Exceptions
+--- ONLY
+--- input
+(with-exception-handler
+  (lambda (obj)
+    (write "Caught exception ")
+    (write obj))
+  (lambda ()
+    (write "Boo!")
+    (raise "Snickerdoodle")
+    (write "Bojang!")))
+--- expected
+"Boo!""Caught exception ""Snickerdoodle"

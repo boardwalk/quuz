@@ -3,15 +3,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[]; /* quuz-lib.c */
+/* quuz-lib.c */
+qz_obj_t qz_error_handler(qz_state_t*, qz_obj_t);
+extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[];
 
-void qz_collect(qz_state_t* st); /* quuz-collector.c */
+/* quuz-collector.c */
+void qz_collect(qz_state_t* st);
 
 qz_state_t* qz_alloc(void)
 {
   qz_state_t* st = (qz_state_t*)malloc(sizeof(qz_state_t));
   st->root_buffer_size = 0;
   st->safety_buffer_size = 0;
+  st->peval_fail = NULL;
+  st->error_handler = qz_from_cfun(qz_error_handler);
+  st->error_obj = QZ_NONE;
   qz_obj_t toplevel = qz_make_hash();
   st->env = qz_make_pair(qz_make_pair(toplevel, QZ_NULL), QZ_NULL);
   /*fprintf(stderr, "toplevel = %p\n", (void*)qz_to_cell(toplevel));*/
@@ -52,28 +58,17 @@ void qz_free(qz_state_t* st)
 qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 {
   /* push state */
-  jmp_buf error_handler;
-  jmp_buf* old_error_handler = st->error_handler;
-  st->error_handler = &error_handler;
+  jmp_buf peval_fail;
+  jmp_buf* old_peval_fail = st->peval_fail;
+  st->peval_fail = &peval_fail;
 
   size_t old_safety_buffer_size = st->safety_buffer_size;
 
   /* call eval() protected by setjmp/longjmp */
   qz_obj_t result;
 
-  if(setjmp(error_handler))
+  if(setjmp(peval_fail))
   {
-    /* print error */
-    fputs("Error: ", stderr);
-    qz_write(st, st->error_obj, -1, stderr);
-    fputc('\n', stderr);
-
-    fputs("Context: ", stderr);
-    qz_write(st, obj, 5, stderr);
-    fputc('\n', stderr);
-
-    qz_unref(st, st->error_obj);
-
     /* cleanup objects in safety buffer */
     assert(st->safety_buffer_size >= old_safety_buffer_size);
 
@@ -89,8 +84,17 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 
     st->safety_buffer_size = old_safety_buffer_size;
 
-    /* return none! */
-    result = QZ_NONE;
+    /* push failsafe error handler */
+    qz_obj_t old_handler = st->error_handler;
+    st->error_handler = qz_from_cfun(qz_error_handler);
+
+    /* call handler */
+    qz_obj_t handler_call = qz_make_pair(qz_ref(st, old_handler), qz_make_pair(st->error_obj, QZ_NULL));
+    result = qz_peval(st, handler_call);
+    qz_unref(st, handler_call);
+
+    /* pop failsafe error handler */
+    st->error_handler = old_handler;
   }
   else
   {
@@ -99,7 +103,7 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   }
 
   /* pop state */
-  st->error_handler = old_error_handler;
+  st->peval_fail = old_peval_fail;
 
   return result;
 }
@@ -200,7 +204,7 @@ qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym)
 qz_obj_t qz_error(qz_state_t* st, const char* msg)
 {
   st->error_obj = qz_make_string(msg);
-  longjmp(*st->error_handler, 1);
+  longjmp(*st->peval_fail, 1);
 }
 
 void qz_push_safety(qz_state_t* st, qz_obj_t obj)

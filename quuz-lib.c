@@ -1915,15 +1915,33 @@ QZ_DEF_CFUN(scm_procedure_q)
 /* TODO apply */
 
 /******************************************************************************
+ * 6.11. Exceptions
+ ******************************************************************************/
+
+QZ_DEF_CFUN(scm_raise)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "a", &obj);
+
+  st->error_obj = obj;
+  longjmp(*st->error_handler, 1);
+
+  return QZ_NONE;
+}
+
+/******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
 
 QZ_DEF_CFUN(scm_write)
 {
-  qz_obj_t value = qz_eval(st, qz_required_arg(st, &args));
-  qz_write(st, value, -1, stdout);
-  qz_unref(st, value);
-  return QZ_NULL;
+  qz_obj_t obj;
+  qz_get_args(st, &args, "a", &obj);
+
+  qz_write(st, obj, -1, stdout);
+  qz_unref(st, obj);
+
+  return QZ_NONE;
 }
 
 const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
@@ -2038,6 +2056,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_bytevector_u8_ref, "bytevector-u8-ref"},
   {scm_bytevector_u8_set_b, "bytevector-u8-set!"},
   {scm_procedure_q, "procedure?"},
+  {scm_raise, "raise"},
   {scm_write, "write"},
   {NULL, NULL}
 };

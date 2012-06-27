@@ -160,6 +160,14 @@ static void pop(void)
 
   qz_obj_t obj = QZ_CELL_DATA(stack_cell, qz_obj_t)[--stack_cell->value.array.size];
 
+  /* append a null to strings */
+  if(qz_is_string(obj)) {
+    qz_cell_t* cell = qz_to_cell(obj);
+    if(cell->value.array.size == cell->value.array.capacity)
+      cell = grow_array(cell, sizeof(char));
+    QZ_CELL_DATA(cell, char)[cell->value.array.size] = '\0';
+  }
+
   append(obj);
 }
 
@@ -173,6 +181,14 @@ static void pop_sym(void)
   assert(stack_cell->value.array.size > 1); /* never pop the root element */
 
   qz_obj_t obj = QZ_CELL_DATA(stack_cell, qz_obj_t)[--stack_cell->value.array.size];
+
+  /* append a null to strings */
+  if(qz_is_string(obj)) {
+    qz_cell_t* cell = qz_to_cell(obj);
+    if(cell->value.array.size == cell->value.array.capacity)
+      cell = grow_array(cell, sizeof(char));
+    QZ_CELL_DATA(cell, char)[cell->value.array.size] = '\0';
+  }
 
   append(qz_make_sym(g_st, obj));
 }

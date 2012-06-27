@@ -2,6 +2,11 @@
 #include <assert.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <time.h>
 
 #define ALIGNED __attribute__ ((aligned (8)))
 #define QZ_DEF_CFUN(n) static ALIGNED qz_obj_t n(qz_state_t* st, qz_obj_t args)
@@ -1927,6 +1932,7 @@ ALIGNED qz_obj_t qz_error_handler(qz_state_t* st, qz_obj_t args)
 
   fputs("An error was caught: ", stderr);
   qz_write(st, obj, -1, stderr);
+  fputc('\n', stderr);
 
   return QZ_NONE;
 }
@@ -1979,6 +1985,129 @@ QZ_DEF_CFUN(scm_write)
   qz_unref(st, obj);
 
   return QZ_NONE;
+}
+
+/* 6.13.4. System interface */
+
+QZ_DEF_CFUN(scm_file_exists_q)
+{
+  qz_obj_t filename;
+  qz_get_args(st, &args, "s", &filename);
+
+  struct stat stat_buf;
+  int ok = stat(QZ_CELL_DATA(qz_to_cell(filename), char), &stat_buf);
+
+  qz_unref(st, filename);
+
+  if(ok < 0 && errno != ENOENT)
+    return qz_error(st, strerror(errno));
+
+  return (ok == 0) ? QZ_TRUE : QZ_FALSE;
+}
+
+QZ_DEF_CFUN(scm_delete_file)
+{
+  qz_obj_t filename;
+  qz_get_args(st, &args, "s", &filename);
+
+  int ok = unlink(QZ_CELL_DATA(qz_to_cell(filename), char));
+
+  qz_unref(st, filename);
+
+  if(ok < 0)
+    return qz_error(st, strerror(errno));
+
+  return QZ_NONE;
+}
+
+extern int g_argc;
+extern char** g_argv;
+
+QZ_DEF_CFUN(scm_command_line)
+{
+  qz_obj_t result = QZ_NULL;
+  qz_obj_t elem;
+
+  for(int i = 0; i < g_argc; i++) {
+    qz_obj_t inner_elem = qz_make_pair(qz_make_string(g_argv[i]), QZ_NULL);
+    if(qz_is_null(result)) {
+      result = elem = inner_elem;
+    }
+    else {
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+  }
+
+  return result;
+}
+
+QZ_DEF_CFUN(scm_exit)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "a?", &obj);
+
+  int code;
+
+  if(qz_is_none(obj) || qz_eqv(obj, QZ_TRUE)) {
+    code = EXIT_SUCCESS;
+  }
+  else if(qz_eqv(obj, QZ_FALSE)) {
+    code = EXIT_FAILURE;
+  }
+  else if(qz_is_fixnum(obj)) {
+    code = qz_to_fixnum(obj);
+  }
+  else {
+    qz_unref(st, obj);
+    return qz_error(st, "Could not convert object to exit code");
+  }
+
+  exit(code);
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_get_environment_variable)
+{
+  qz_obj_t name;
+  qz_get_args(st, &args, "s", &name);
+
+  const char* value = getenv(QZ_CELL_DATA(qz_to_cell(name), char));
+  if(!value)
+    return QZ_FALSE;
+
+  return qz_make_string(value);
+}
+
+QZ_DEF_CFUN(scm_get_environment_variables)
+{
+  qz_obj_t result = QZ_NULL;
+  qz_obj_t elem;
+
+  for(char** e = __environ; *e; e++) {
+    char* sep = strchr(*e, '=');
+    if(!sep)
+      continue;
+
+    qz_obj_t key = qz_make_string_with_size(*e, sep - *e);
+    qz_obj_t value = qz_make_string_with_size(sep + 1, strlen(sep + 1));
+
+    qz_obj_t inner_elem = qz_make_pair(qz_make_pair(key, value), QZ_NULL);
+    if(qz_is_null(result)) {
+      result = elem = inner_elem;
+    }
+    else {
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+  }
+
+  return result;
+}
+
+QZ_DEF_CFUN(scm_current_second)
+{
+  return qz_from_fixnum(time(NULL));
 }
 
 const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
@@ -2096,5 +2225,12 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_with_exception_handler, "with-exception-handler"},
   {scm_raise, "raise"},
   {scm_write, "write"},
+  {scm_file_exists_q, "file-exists?"},
+  {scm_delete_file, "delete-file"},
+  {scm_command_line, "command-line"},
+  {scm_exit, "exit"},
+  {scm_get_environment_variable, "get-environment-variable"},
+  {scm_get_environment_variables, "get-environment-variables"},
+  {scm_current_second, "current-second"},
   {NULL, NULL}
 };

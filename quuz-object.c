@@ -178,14 +178,17 @@ qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size)
 
 qz_obj_t qz_make_string(const char* str)
 {
-  size_t str_size = strlen(str);
+  return qz_make_string_with_size(str, strlen(str));
+}
 
-  qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, str_size*sizeof(char));
+qz_obj_t qz_make_string_with_size(const char* str, size_t size)
+{
+  qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, size*sizeof(char));
 
-  cell->value.array.size = str_size;
-  cell->value.array.capacity = str_size;
+  cell->value.array.size = size;
+  cell->value.array.capacity = size;
 
-  memcpy(QZ_CELL_DATA(cell, char), str, str_size);
+  memcpy(QZ_CELL_DATA(cell, char), str, size);
 
   return qz_from_cell(cell);
 }

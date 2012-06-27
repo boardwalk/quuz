@@ -3,6 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 
+int g_argc = 0;
+char** g_argv = NULL;
+
 int main(int argc, char* argv[])
 {
   FILE* fp = stdin;
@@ -34,11 +37,16 @@ int main(int argc, char* argv[])
   }
 
   if(optind < argc) {
-    fp = fopen(argv[optind], "r");
-    if(!fp) {
-      fputs("could not open input file\n", stderr);
-      return EXIT_FAILURE;
+
+    if(strcmp(argv[optind], "-") != 0) {
+      fp = fopen(argv[optind], "r");
+      if(!fp) {
+        fputs("could not open input file\n", stderr);
+        return EXIT_FAILURE;
+      }
     }
+    g_argc = argc - optind;
+    g_argv = argv + optind;
   }
 
   qz_state_t* st = qz_alloc();

@@ -191,6 +191,7 @@ void qz_set_buffered(qz_cell_t* cell, size_t bu);
 
 qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size);
 qz_obj_t qz_make_string(const char* str);
+qz_obj_t qz_make_string_with_size(const char* str, size_t size);
 qz_obj_t qz_make_pair(qz_obj_t first, qz_obj_t rest);
 qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name);
 

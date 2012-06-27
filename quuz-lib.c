@@ -1462,7 +1462,6 @@ QZ_DEF_CFUN(scm_string_length)
   return array_length(st, args, "s");
 }
 
-
 static qz_obj_t string_ref(qz_state_t* st, qz_cell_t* cell, size_t i)
 {
   return qz_from_char(QZ_CELL_DATA(cell, char)[i]);
@@ -2079,12 +2078,14 @@ QZ_DEF_CFUN(scm_get_environment_variable)
   return qz_make_string(value);
 }
 
+extern char** environ;
+
 QZ_DEF_CFUN(scm_get_environment_variables)
 {
   qz_obj_t result = QZ_NULL;
   qz_obj_t elem;
 
-  for(char** e = __environ; *e; e++) {
+  for(char** e = environ; *e; e++) {
     char* sep = strchr(*e, '=');
     if(!sep)
       continue;

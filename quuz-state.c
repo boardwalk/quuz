@@ -33,6 +33,7 @@ qz_state_t* qz_alloc(void)
   st->quasiquote_sym = qz_make_sym(st, qz_make_string("quasiquote"));
   st->unquote_sym = qz_make_sym(st, qz_make_string("unquote"));
   st->unquote_splicing_sym = qz_make_sym(st, qz_make_string("unquote-splicing"));
+  st->args_sym = qz_make_sym(st, qz_make_string("args"));
 
   for(const qz_named_cfun_t* ncf = QZ_LIB_FUNCTIONS; ncf->cfun; ncf++)
   {

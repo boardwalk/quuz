@@ -163,8 +163,10 @@ static void pop(void)
   /* append a null to strings */
   if(qz_is_string(obj)) {
     qz_cell_t* cell = qz_to_cell(obj);
-    if(cell->value.array.size == cell->value.array.capacity)
+    if(cell->value.array.size == cell->value.array.capacity) {
       cell = grow_array(cell, sizeof(char));
+      obj = qz_from_cell(cell);
+    }
     QZ_CELL_DATA(cell, char)[cell->value.array.size] = '\0';
   }
 
@@ -185,8 +187,10 @@ static void pop_sym(void)
   /* append a null to strings */
   if(qz_is_string(obj)) {
     qz_cell_t* cell = qz_to_cell(obj);
-    if(cell->value.array.size == cell->value.array.capacity)
+    if(cell->value.array.size == cell->value.array.capacity) {
       cell = grow_array(cell, sizeof(char));
+      obj = qz_from_cell(cell);
+    }
     QZ_CELL_DATA(cell, char)[cell->value.array.size] = '\0';
   }
 

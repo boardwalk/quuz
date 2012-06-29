@@ -122,8 +122,6 @@ static qz_obj_t array_set(qz_state_t* st, qz_obj_t args, const char* type_spec, 
   return QZ_NONE;
 }
 
-
-
 QZ_DEF_CFUN(scm_begin);
 
 /******************************************************************************
@@ -894,7 +892,7 @@ QZ_DEF_CFUN(scm_define_record_type)
   /* generate constructor */
   {
 
-    /* (make_record name nfields ninit init1 init2 init3 ... . args) */
+    /* (make_record name nfields ninit init1 init2 init3... . args) */
     qz_obj_t elem = qz_make_pair(qz_from_fixnum(ninit), QZ_NULL);
     qz_obj_t fun_call = qz_make_pair(qz_from_cfun(make_record),
                         qz_make_pair(name,

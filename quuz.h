@@ -337,4 +337,7 @@ qz_obj_t qz_ref(qz_state_t* st, qz_obj_t obj);
 /* remove one reference from an object */
 void qz_unref(qz_state_t* st, qz_obj_t obj);
 
+/* free an object without checking reference count or unreferencing children */
+void qz_obliterate(qz_obj_t obj);
+
 #endif /* QUUZ_QUUZ_H */

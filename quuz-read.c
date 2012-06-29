@@ -213,7 +213,7 @@ static void elide_pair(void)
     if(qz_is_null(pair->rest)) {
       qz_to_pair(prev)->rest = pair->first;
       pair->first = QZ_NULL;
-      free(qz_to_cell(curr)); /* TODO not kosher */
+      qz_obliterate(curr);
       break;
     }
 

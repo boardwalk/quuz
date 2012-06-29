@@ -1,8 +1,11 @@
 #!/bin/sh
 set -e -x
-leg quuz.leg > parser.c
+
+leg quuz.leg > parser.c || exit 1
+
 flags="-g"
 [ "$1" = release ] && flags="-O2 -DNDEBUG"
+
 gcc -D_POSIX_C_SOURCE=200809L -Wall -pedantic -std=c99 $flags -o quuz \
   quuz-main.c \
   quuz-object.c \
@@ -13,6 +16,8 @@ gcc -D_POSIX_C_SOURCE=200809L -Wall -pedantic -std=c99 $flags -o quuz \
   MurmurHash3.c \
   quuz-state.c \
   quuz-lib.c \
-  quuz-util.c
+  quuz-util.c || exit 1
 
 [ "$1" = release ] && strip -s quuz
+
+exit 0

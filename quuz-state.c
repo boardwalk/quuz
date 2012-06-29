@@ -109,6 +109,101 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   return result;
 }
 
+static qz_obj_t call_function(qz_state_t* st, qz_obj_t fun, qz_obj_t args)
+{
+  qz_obj_t env = qz_first(fun);
+  qz_obj_t params = qz_first(qz_rest(fun));
+  qz_obj_t body = qz_rest(qz_rest(fun));
+
+  /* create frame */
+  qz_obj_t frame = qz_make_hash();
+
+  while(qz_is_pair(params))
+  {
+    /* grab parameter */
+    qz_obj_t param = qz_first(params);
+    params = qz_to_pair(params)->rest;
+
+    if(!qz_is_sym(param)) {
+      qz_unref(st, frame);
+      return qz_error(st, "function parameter is not a symbol");
+    }
+
+    /* grab argument */
+    if(!qz_is_pair(args)) {
+      qz_unref(st, frame);
+      return qz_error(st, "not enough arguments to function");
+    }
+
+    qz_obj_t arg = qz_first(args);
+    args = qz_rest(args);
+
+    qz_push_safety(st, frame);
+    arg = qz_eval(st, arg);
+    qz_pop_safety(st, 1);
+
+    /* assign argument to parameter */
+    qz_hash_set(st, &frame, param, arg);
+  }
+
+  if(qz_is_null(params))
+  {
+    /* all done */
+  }
+  else if(qz_is_sym(params))
+  {
+    /* variable parameter, ex. (lambda (a b c . rest) ...) */
+    qz_obj_t rest_args = QZ_NULL;
+    qz_obj_t elem;
+
+    while(qz_is_pair(args)) {
+      /* grab argument */
+      qz_obj_t inner_elem = qz_first(args);
+      args = qz_rest(args);
+
+      /* eval argument */
+      qz_push_safety(st, frame);
+      qz_push_safety(st, rest_args);
+      inner_elem = qz_eval(st, inner_elem);
+      qz_pop_safety(st, 2);
+
+      /* append to rest_args */
+      inner_elem = qz_make_pair(inner_elem, QZ_NULL);
+      if(qz_is_null(rest_args)) {
+        rest_args = elem = inner_elem;
+      }
+      else {
+        qz_to_pair(elem)->rest = inner_elem;
+        elem = inner_elem;
+      }
+    }
+
+    /* assign evaluated arguments list to parameter */
+    qz_hash_set(st, &frame, params, rest_args);
+  }
+  else
+  {
+    /* it's not a pair, symbol, or null, hmmm... */
+    qz_unref(st, frame);
+    return qz_error(st, "invalid function formals");
+  }
+
+  /* push environment with frame */
+  qz_obj_t old_env = st->env;
+  st->env = qz_make_pair(qz_make_pair(frame, qz_ref(st, env)), qz_ref(st, st->env));
+  qz_push_safety(st, st->env);
+
+  /* execute function */
+  qz_obj_t result = qz_eval(st, body);
+
+  /* pop environment */
+  qz_pop_safety(st, 1);
+  qz_unref(st, st->env);
+  st->env = old_env;
+
+  return result;
+}
+
 qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
 {
   if(qz_is_pair(obj))
@@ -119,41 +214,11 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     {
       qz_push_safety(st, fun);
 
-      qz_obj_t env = qz_first(fun);
-      qz_obj_t formals = qz_first(qz_rest(fun));
-      qz_obj_t body = qz_rest(qz_rest(fun));
-
-      /* create frame */
-      qz_obj_t frame = qz_make_hash();
-
-      for(;;) {
-        qz_obj_t param = qz_optional_arg(st, &formals);
-
-        if(qz_is_none(param))
-          break; /* ran out of params */
-
-        qz_push_safety(st, frame);
-        qz_obj_t arg = qz_eval(st, qz_required_arg(st, &obj));
-        qz_pop_safety(st, 1);
-
-        qz_hash_set(st, &frame, param, arg);
-      }
-
-      /* push environment with frame */
-      qz_obj_t old_env = st->env;
-      st->env = qz_make_pair(qz_make_pair(frame, qz_ref(st, env)), qz_ref(st, st->env));
-      qz_push_safety(st, st->env);
-
-      /* execute function */
-      qz_obj_t result = qz_eval(st, body);
-
-      /* pop environment */
-      qz_pop_safety(st, 1);
-      qz_unref(st, st->env);
-      st->env = old_env;
+      qz_obj_t result = call_function(st, fun, obj);
 
       qz_pop_safety(st, 1);
       qz_unref(st, fun);
+
       return result;
     }
     else if(qz_is_cfun(fun))

@@ -121,7 +121,20 @@ static qz_obj_t array_set(qz_state_t* st, qz_obj_t args, const char* type_spec, 
   return QZ_NONE;
 }
 
+static intptr_t list_length(qz_obj_t obj)
+{
+  intptr_t len = 0;
+  for(;;) {
+    if(qz_is_null(obj))
+      return len;
 
+    if(!qz_is_pair(obj))
+      return -1;
+
+    len++;
+    obj = qz_rest(obj);
+  }
+}
 
 QZ_DEF_CFUN(scm_begin);
 
@@ -576,8 +589,6 @@ static qz_obj_t qq_or_splice(qz_state_t* st, qz_obj_t in, int depth, int* splice
   return qq(st, in, depth);
 }
 
-static intptr_t list_length(qz_obj_t obj);
-
 static qz_obj_t qq_list(qz_state_t* st, qz_obj_t in, int depth)
 {
   qz_obj_t obj = qz_first(in);
@@ -1019,21 +1030,6 @@ QZ_DEF_CFUN(scm_list)
       qz_to_pair(elem)->rest = inner_elem;
       elem = inner_elem;
     }
-  }
-}
-
-static intptr_t list_length(qz_obj_t obj)
-{
-  intptr_t len = 0;
-  for(;;) {
-    if(qz_is_null(obj))
-      return len;
-
-    if(!qz_is_pair(obj))
-      return -1;
-
-    len++;
-    obj = qz_rest(obj);
   }
 }
 
@@ -1633,9 +1629,57 @@ QZ_DEF_CFUN(scm_substring)
   return qz_from_cell(out);
 }
 
-/* TODO string->list */
+QZ_DEF_CFUN(scm_string_a_list)
+{
+  qz_obj_t str;
+  qz_get_args(st, &args, "s", &str);
 
-/* TODO list->string */
+  qz_cell_t* cell = qz_to_cell(str);
+
+  qz_obj_t result = QZ_NULL;
+  qz_obj_t elem;
+
+  for(size_t i = 0; i < cell->value.array.size; i++) {
+    qz_obj_t inner_elem = qz_make_pair(qz_from_char(QZ_CELL_DATA(cell, char)[i]), QZ_NULL);
+    if(qz_is_null(result)) {
+      result = elem = inner_elem;
+    }
+    else {
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+  }
+
+  qz_unref(st, str);
+  return result;
+}
+
+QZ_DEF_CFUN(scm_list_a_string)
+{
+  qz_obj_t list;
+  qz_get_args(st, &args, "p", &list);
+
+  intptr_t len = list_length(list);
+  if(len < 0)
+    return qz_error(st, "expected list");
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, len);
+
+  qz_obj_t e = list;
+  for(size_t i = 0; i < len; i++) {
+    qz_obj_t ch = qz_first(e);
+    if(!qz_is_char(ch)) {
+      qz_unref(st, list);
+      qz_unref(st, qz_from_cell(cell));
+      return qz_error(st, "expected character");
+    }
+    QZ_CELL_DATA(cell, char)[i] = qz_to_char(ch);
+    e = qz_rest(e);
+  }
+
+  qz_unref(st, list);
+  return qz_from_cell(cell);
+}
 
 static int identity(int i)
 {
@@ -2206,6 +2250,8 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_string_upcase, "string-upcase"},
   {scm_string_downcase, "string-downcase"},
   {scm_substring, "substring"},
+  {scm_string_a_list, "string->list"},
+  {scm_list_a_string, "list->string"},
   {scm_string_copy, "string-copy"},
   {scm_vector_q, "vector?"},
   {scm_make_vector, "make-vector"},

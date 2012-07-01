@@ -18,6 +18,7 @@ static const char* type_name(char t)
   case 'v': return "vector";
   case 'w': return "bytevector";
   case 'h': return "hash";
+  case 't': return "record";
   case 'r': return "real";
   }
 
@@ -41,6 +42,7 @@ static int is_type(qz_obj_t obj, char t)
   case 'v': return qz_is_vector(obj);
   case 'w': return qz_is_bytevector(obj);
   case 'h': return qz_is_hash(obj);
+  case 't': return qz_is_record(obj);
   case 'r': return qz_is_real(obj);
   }
 

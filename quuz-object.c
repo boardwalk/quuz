@@ -62,6 +62,9 @@ int qz_is_bytevector(qz_obj_t obj) {
 int qz_is_hash(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_HASH);
 }
+int qz_is_record(qz_obj_t obj) {
+  return cell_of_type(obj, QZ_CT_RECORD);
+}
 int qz_is_real(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_REAL);
 }

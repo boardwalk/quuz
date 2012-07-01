@@ -248,6 +248,12 @@ void qz_unref(qz_state_t* st, qz_obj_t obj)
   call_if_valid_cell(st, obj, decrement);
 }
 
+void qz_obliterate(qz_obj_t obj)
+{
+  if(qz_is_cell(obj))
+    free(qz_to_cell(obj));
+}
+
 void qz_collect(qz_state_t* st)
 {
   D_PRINTF("mark_roots starting...\n");

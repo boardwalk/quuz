@@ -53,7 +53,6 @@ foo
 "hi"8
 
 === Exceptions
---- ONLY
 --- input
 (with-exception-handler
   (lambda (obj)
@@ -65,3 +64,14 @@ foo
     (write "Bojang!")))
 --- expected
 "Boo!""Caught exception ""Snickerdoodle"
+
+=== Variable arguments
+--- ONLY
+--- input
+(define (x . args)
+  (write args))
+(write "boof")
+(x 1 2 3)
+--- expected
+"boof"(1 2 3)
+

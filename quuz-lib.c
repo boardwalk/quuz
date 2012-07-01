@@ -1,12 +1,13 @@
 #include "quuz.h"
+#include <sys/stat.h>
+#include <alloca.h>
 #include <assert.h>
 #include <ctype.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #define ALIGNED __attribute__ ((aligned (8)))
 #define QZ_DEF_CFUN(n) static ALIGNED qz_obj_t n(qz_state_t* st, qz_obj_t args)
@@ -745,6 +746,209 @@ QZ_DEF_CFUN(scm_define)
   else
   {
     return qz_error(st, "first argument to define must be a symbol or list");
+  }
+
+  return QZ_NONE;
+}
+
+/******************************************************************************
+ * 5.4. Record type definitions
+ ******************************************************************************/
+
+static ALIGNED qz_obj_t make_record(qz_state_t* st, qz_obj_t args)
+{
+  /* grab arguments */
+  qz_obj_t name = qz_required_arg(st, &args); /* name of record, ex. stat */
+  intptr_t nfields = qz_to_fixnum(qz_required_arg(st, &args)); /* number of fields in record */
+  intptr_t ninit = qz_to_fixnum(qz_required_arg(st, &args)); /* number of fields initialized by constructor */
+
+  intptr_t* init_indices = (intptr_t*)alloca(ninit*sizeof(intptr_t));
+  for(intptr_t i = 0; i < ninit; i++)
+    init_indices[i] = qz_to_fixnum(qz_required_arg(st, &args)); /* index of initialized field */
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_RECORD, nfields*sizeof(qz_obj_t));
+  cell->value.record.name = name;
+
+  /* clear fields */
+  for(intptr_t i = 0; i < nfields; i++)
+    QZ_CELL_DATA(cell, qz_obj_t)[i] = QZ_NONE;
+
+  /* initialize fields */
+  qz_push_safety(st, qz_from_cell(cell));
+
+  for(intptr_t i = 0; i < ninit; i++)
+    QZ_CELL_DATA(cell, qz_obj_t)[init_indices[i]] = qz_required_arg(st, &args);
+
+  qz_pop_safety(st, 1);
+
+  return qz_from_cell(cell);
+}
+
+static ALIGNED qz_obj_t access_record(qz_state_t* st, qz_obj_t args)
+{
+  qz_obj_t name = qz_required_arg(st, &args);
+  qz_obj_t field = qz_required_arg(st, &args);
+  qz_obj_t record;
+  qz_get_args(st, &args, "t", &record);
+
+  qz_cell_t* cell = qz_to_cell(record);
+
+  if(!qz_eqv(cell->value.record.name, name))
+    return qz_error(st, "wrong type to record accessor");
+
+  return qz_ref(st, QZ_CELL_DATA(cell, qz_obj_t)[qz_to_fixnum(field)]);
+}
+
+static ALIGNED qz_obj_t modify_record(qz_state_t* st, qz_obj_t args)
+{
+  qz_obj_t name = qz_required_arg(st, &args);
+  qz_obj_t field = qz_required_arg(st, &args);
+  qz_obj_t record, value;
+  qz_get_args(st, &args, "ta", &record, &value);
+
+  qz_cell_t* cell = qz_to_cell(record);
+
+  if(!qz_eqv(cell->value.record.name, name))
+    return qz_error(st, "wrong type to record modifier");
+
+  qz_obj_t* slot = QZ_CELL_DATA(cell, qz_obj_t) + qz_to_fixnum(field);
+
+  qz_unref(st, *slot);
+  *slot = qz_ref(st, value);
+
+  return QZ_NONE;
+}
+
+static ALIGNED qz_obj_t is_record(qz_state_t* st, qz_obj_t args)
+{
+  qz_obj_t name = qz_required_arg(st, &args);
+  qz_obj_t record;
+  qz_get_args(st, &args, "a", &record);
+
+  if(!qz_is_record(record))
+    return QZ_FALSE;
+
+  qz_cell_t* cell = qz_to_cell(record);
+
+  if(!qz_eqv(cell->value.record.name, name))
+    return QZ_FALSE;
+
+  return QZ_TRUE;
+}
+
+static void make_function(qz_state_t* st, qz_obj_t name, qz_obj_t formals, qz_obj_t body)
+{
+  qz_cell_t* cell = qz_make_cell(QZ_CT_FUN, 0);
+  cell->value.pair.first = qz_ref(st, qz_list_tail(st->env));
+  cell->value.pair.rest = qz_make_pair(formals, body);
+
+  set_var(st, name, qz_from_cell(cell));
+}
+
+QZ_DEF_CFUN(scm_define_record_type)
+{
+  /* grab arguments */
+  /* ignored */ qz_required_arg(st, &args);
+  qz_obj_t ctor = qz_required_arg(st, &args);
+  qz_obj_t pred_name = qz_required_arg(st, &args);
+
+  if(!qz_is_sym(pred_name))
+    return qz_error(st, "expected symbol for predicate");
+
+  /* parse fields */
+  intptr_t nfields = list_length(args);
+  if(nfields < 0)
+    return qz_error(st, "expected list for arguments");
+
+  qz_obj_t* fields = (qz_obj_t*)alloca(nfields*sizeof(qz_obj_t));
+  for(intptr_t i = 0; i < nfields; i++)
+    fields[i] = qz_required_arg(st, &args);
+
+  /* parse ctor */
+  qz_obj_t ctor_name = qz_required_arg(st, &ctor);
+  if(!qz_is_sym(ctor_name))
+    return qz_error(st, "expected symbol for constructor name");
+
+  intptr_t ninit = list_length(ctor);
+  if(ninit < 0)
+    return qz_error(st, "expected list for constructor");
+
+  intptr_t* init_indices = (intptr_t*)alloca(ninit*sizeof(qz_obj_t));
+  for(intptr_t i = 0; i < ninit; i++)
+  {
+    qz_obj_t name = qz_required_arg(st, &ctor);
+
+    intptr_t j = 0;
+    for(/**/; j < nfields; j++)
+    {
+      if(qz_eqv(name, qz_first(fields[j])))
+          break;
+    }
+
+    if(j == nfields)
+      return qz_error(st, "contructor lists unknown field");
+
+    init_indices[i] = j;
+  }
+
+  /* allocate unique symbol */
+  qz_obj_t name = (qz_obj_t) { (st->next_sym++ << 5) | QZ_PT_SYM };
+
+  /* generate predicate */
+  {
+    /* (is_record name . args) */
+    qz_obj_t fun_call = qz_make_pair(qz_from_cfun(is_record), qz_make_pair(name, st->args_sym));
+
+    make_function(st, pred_name, st->args_sym, qz_make_pair(fun_call, QZ_NULL));
+  }
+
+  /* generate constructor */
+  {
+
+    /* (make_record name nfields ninit init1 init2 init3... . args) */
+    qz_obj_t elem = qz_make_pair(qz_from_fixnum(ninit), QZ_NULL);
+    qz_obj_t fun_call = qz_make_pair(qz_from_cfun(make_record),
+                        qz_make_pair(name,
+                        qz_make_pair(qz_from_fixnum(nfields), elem)));
+
+    for(int i = 0; i < ninit; i++) {
+      qz_obj_t inner_elem = qz_make_pair(qz_from_fixnum(init_indices[i]), QZ_NULL);
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+
+    qz_to_pair(elem)->rest = st->args_sym;
+
+    make_function(st, ctor_name, st->args_sym, qz_make_pair(fun_call, QZ_NULL));
+  }
+
+  /* generate accessors and modifiers */
+  for(intptr_t i = 0; i < nfields; i++)
+  {
+    qz_obj_t field = fields[i];
+    /* ignored */ qz_required_arg(st, &field);
+    qz_obj_t accessor_name = qz_optional_arg(st, &field);
+    qz_obj_t modifier_name = qz_optional_arg(st, &field);
+
+    if(!qz_is_none(accessor_name))
+    {
+      /* (access_record name field . args) */
+      qz_obj_t fun_call = qz_make_pair(qz_from_cfun(access_record),
+                          qz_make_pair(name,
+                          qz_make_pair(qz_from_fixnum(i), st->args_sym)));
+
+      make_function(st, accessor_name, st->args_sym, qz_make_pair(fun_call, QZ_NULL));
+    }
+
+    if(!qz_is_none(modifier_name))
+    {
+      /* (modify_record name field . args) */
+      qz_obj_t fun_call = qz_make_pair(qz_from_cfun(modify_record),
+                          qz_make_pair(name,
+                          qz_make_pair(qz_from_fixnum(i), st->args_sym)));
+
+      make_function(st, modifier_name, st->args_sym, qz_make_pair(fun_call, QZ_NULL));
+    }
   }
 
   return QZ_NONE;
@@ -2175,6 +2379,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_eager, "eager"},
   {scm_quasiquote, "quasiquote"},
   {scm_define, "define"},
+  {scm_define_record_type, "define-record-type"},
   {scm_eq_q, "eq?"},
   {scm_eqv_q, "eqv?"},
   {scm_equal_q, "equal?"},

@@ -66,7 +66,6 @@ foo
 "Boo!""Caught exception ""Snickerdoodle"
 
 === Variable arguments
---- ONLY
 --- input
 (define (x . args)
   (write args))

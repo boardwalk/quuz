@@ -271,6 +271,10 @@ int qz_equal(qz_obj_t a, qz_obj_t b);
  */
 void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...);
 
+/* eval a list of objects into another list of objects
+ * ex. ((+ 1 2) (* 3 4)) -> (3 12) */
+qz_obj_t qz_eval_list(qz_state_t* st, qz_obj_t list);
+
 /******************************************************************************
  * quuz-hash.c
  ******************************************************************************/
@@ -329,9 +333,7 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp);
  * quuz-write.c
  ******************************************************************************/
 
-/* scheme's write procedure 
- * when depth < 0, the entire tree will be printed and readable by qz_read
- * when depth >= 0, the tree will only be printed to that depth */
+/* scheme's write procedure */
 void qz_write(qz_state_t* st, qz_obj_t obj, FILE* fp);
 
 /******************************************************************************

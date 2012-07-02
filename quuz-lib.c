@@ -2266,6 +2266,44 @@ QZ_DEF_CFUN(scm_raise)
   return QZ_NONE;
 }
 
+QZ_DEF_CFUN(scm_error)
+{
+  qz_obj_t message;
+  qz_get_args(st, &args, "s", &message);
+
+  qz_push_safety(st, message);
+  qz_obj_t irritants = qz_eval_list(st, args);
+  qz_pop_safety(st, 1);
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_ERROR, 0);
+  cell->value.pair.first = message;
+  cell->value.pair.rest = irritants;
+
+  st->error_obj = qz_from_cell(cell);
+  longjmp(*st->peval_fail, 1);
+
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_error_object_q)
+{
+  return predicate(st, args, qz_is_error);
+}
+
+QZ_DEF_CFUN(scm_error_object_message)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "e", &obj);
+  return qz_ref(st, qz_first(obj));
+}
+
+QZ_DEF_CFUN(scm_error_object_irritants)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "e", &obj);
+  return qz_ref(st, qz_rest(obj));
+}
+
 /******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
@@ -2528,6 +2566,10 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_apply, "apply"},
   {scm_with_exception_handler, "with-exception-handler"},
   {scm_raise, "raise"},
+  {scm_error, "error"},
+  {scm_error_object_q, "error-object?"},
+  {scm_error_object_message, "error-object-message"},
+  {scm_error_object_irritants, "error-object-irritants"},
   {scm_write, "write"},
   {scm_file_exists_q, "file-exists?"},
   {scm_delete_file, "delete-file"},

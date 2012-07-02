@@ -154,30 +154,9 @@ static qz_obj_t call_function(qz_state_t* st, qz_obj_t fun, qz_obj_t args)
   else if(qz_is_sym(params))
   {
     /* variable parameter, ex. (lambda (a b c . rest) ...) */
-    qz_obj_t rest_args = QZ_NULL;
-    qz_obj_t elem;
-
-    while(qz_is_pair(args)) {
-      /* grab argument */
-      qz_obj_t inner_elem = qz_first(args);
-      args = qz_rest(args);
-
-      /* eval argument */
-      qz_push_safety(st, frame);
-      qz_push_safety(st, rest_args);
-      inner_elem = qz_eval(st, inner_elem);
-      qz_pop_safety(st, 2);
-
-      /* append to rest_args */
-      inner_elem = qz_make_pair(inner_elem, QZ_NULL);
-      if(qz_is_null(rest_args)) {
-        rest_args = elem = inner_elem;
-      }
-      else {
-        qz_to_pair(elem)->rest = inner_elem;
-        elem = inner_elem;
-      }
-    }
+    qz_push_safety(st, frame);
+    qz_obj_t rest_args = qz_eval_list(st, args);
+    qz_pop_safety(st, 1);
 
     /* assign evaluated arguments list to parameter */
     qz_hash_set(st, &frame, params, rest_args);

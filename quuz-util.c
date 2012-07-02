@@ -102,3 +102,32 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...)
 
   va_end(ap);
 }
+
+qz_obj_t qz_eval_list(qz_state_t* st, qz_obj_t list)
+{
+  qz_obj_t result = QZ_NULL;
+  qz_obj_t elem;
+
+  while(qz_is_pair(list)) {
+    /* grab argument */
+    qz_obj_t inner_elem = qz_first(list);
+    list = qz_rest(list);
+
+    /* eval argument */
+    qz_push_safety(st, result);
+    inner_elem = qz_eval(st, inner_elem);
+    qz_pop_safety(st, 1);
+
+    /* append to result */
+    inner_elem = qz_make_pair(inner_elem, QZ_NULL);
+    if(qz_is_null(result)) {
+      result = elem = inner_elem;
+    }
+    else {
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+  }
+
+  return result;
+}

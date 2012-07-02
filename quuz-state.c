@@ -69,23 +69,28 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   /* call eval() protected by setjmp/longjmp */
   qz_obj_t result;
 
-  if(setjmp(peval_fail))
+  int err = setjmp(peval_fail);
+  if(!err)
+    result = qz_eval(st, obj);
+
+  /* cleanup objects in safety buffers  */
+  assert(st->safety_buffer_size >= old_safety_buffer_size);
+
+  for(size_t i = old_safety_buffer_size; i < st->safety_buffer_size; i++)
   {
-    /* cleanup objects in safety buffer */
-    assert(st->safety_buffer_size >= old_safety_buffer_size);
+    qz_obj_t safety_obj = st->safety_buffer[i];
 
-    for(size_t i = old_safety_buffer_size; i < st->safety_buffer_size; i++)
-    {
-      qz_obj_t safety_obj = st->safety_buffer[i];
+    if(qz_eq(safety_obj, st->env))
+      st->env = qz_rest(st->env); /* pop environment */
 
-      if(qz_eq(safety_obj, st->env))
-        st->env = qz_rest(st->env); /* pop environment */
+    qz_unref(st, safety_obj);
+  }
 
-      qz_unref(st, safety_obj);
-    }
+  st->safety_buffer_size = old_safety_buffer_size;
 
-    st->safety_buffer_size = old_safety_buffer_size;
-
+  /* handle errors */
+  if(err)
+  {
     /* push failsafe error handler */
     qz_obj_t old_handler = st->error_handler;
     st->error_handler = qz_from_cfun(qz_error_handler);
@@ -97,11 +102,6 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 
     /* pop failsafe error handler */
     st->error_handler = old_handler;
-  }
-  else
-  {
-    result = qz_eval(st, obj);
-    assert(st->safety_buffer_size == old_safety_buffer_size);
   }
 
   /* pop state */

@@ -76,9 +76,9 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   /* cleanup objects in safety buffers  */
   assert(st->safety_buffer_size >= old_safety_buffer_size);
 
-  for(size_t i = old_safety_buffer_size; i < st->safety_buffer_size; i++)
+  for(size_t i = st->safety_buffer_size; i > old_safety_buffer_size; i--)
   {
-    qz_obj_t safety_obj = st->safety_buffer[i];
+    qz_obj_t safety_obj = st->safety_buffer[i - 1];
 
     if(qz_eq(safety_obj, st->env))
       st->env = qz_rest(st->env); /* pop environment */

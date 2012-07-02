@@ -1182,6 +1182,7 @@ QZ_DEF_CFUN(scm_null_q)
 
 static int is_list(qz_obj_t obj)
 {
+  /* TODO handle object containing a cycle */
   for(;;) {
     if(qz_is_null(obj))
       return 1;
@@ -2163,7 +2164,52 @@ QZ_DEF_CFUN(scm_procedure_q)
   return predicate(st, args, is_procedure);
 }
 
-/* TODO apply */
+QZ_DEF_CFUN(scm_apply)
+{
+  qz_obj_t fun_call = QZ_NULL;
+  qz_obj_t elem;
+
+  if(!qz_is_pair(args))
+    return qz_error(st, "expected pair");
+
+  for(;;)
+  {
+    qz_obj_t arg = qz_first(args);
+    args = qz_rest(args);
+
+    if(!qz_is_pair(args))
+    {
+      /* last argument, eval and append directly */
+      qz_push_safety(st, fun_call);
+      qz_obj_t inner_elem = qz_eval(st, arg);
+      qz_pop_safety(st, 1);
+      if(qz_is_null(fun_call)) {
+        fun_call = elem = inner_elem;
+      }
+      else {
+        qz_to_pair(elem)->rest = inner_elem;
+        elem = inner_elem;
+      }
+      break;
+    }
+
+    /* not the last argument, just append to the list */
+    qz_obj_t inner_elem = qz_make_pair(qz_ref(st, arg), QZ_NULL);
+    if(qz_is_null(fun_call)) {
+      fun_call = elem = inner_elem;
+    }
+    else {
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+  }
+
+  qz_push_safety(st, fun_call);
+  qz_obj_t result = qz_eval(st, fun_call);
+  qz_pop_safety(st, 1);
+  qz_unref(st, fun_call);
+  return result;
+}
 
 /******************************************************************************
  * 6.11. Exceptions
@@ -2473,6 +2519,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_bytevector_u8_ref, "bytevector-u8-ref"},
   {scm_bytevector_u8_set_b, "bytevector-u8-set!"},
   {scm_procedure_q, "procedure?"},
+  {scm_apply, "apply"},
   {scm_with_exception_handler, "with-exception-handler"},
   {scm_raise, "raise"},
   {scm_write, "write"},

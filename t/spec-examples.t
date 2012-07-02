@@ -207,3 +207,10 @@ TODO not complete
 (list 3 4)
 ((foo 7) . cons)
 #(10 5 4)
+
+=== Apply
+--- ONLY
+--- input
+(apply + 1 2 (list 3 4))
+--- expected
+10

@@ -209,7 +209,6 @@ TODO not complete
 #(10 5 4)
 
 === Apply
---- ONLY
 --- input
 (apply + 1 2 (list 3 4))
 --- expected

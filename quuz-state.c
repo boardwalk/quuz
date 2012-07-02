@@ -1,5 +1,6 @@
 #include "quuz.h"
 #include <assert.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -126,13 +127,13 @@ static qz_obj_t call_function(qz_state_t* st, qz_obj_t fun, qz_obj_t args)
 
     if(!qz_is_sym(param)) {
       qz_unref(st, frame);
-      return qz_error(st, "function parameter is not a symbol");
+      return qz_error(st, "function parameter is not a symbol", &param, NULL);
     }
 
     /* grab argument */
     if(!qz_is_pair(args)) {
       qz_unref(st, frame);
-      return qz_error(st, "not enough arguments to function");
+      return qz_error(st, "not enough arguments to function", NULL);
     }
 
     qz_obj_t arg = qz_first(args);
@@ -185,7 +186,7 @@ static qz_obj_t call_function(qz_state_t* st, qz_obj_t fun, qz_obj_t args)
   {
     /* it's not a pair, symbol, or null, hmmm... */
     qz_unref(st, frame);
-    return qz_error(st, "invalid function formals");
+    return qz_error(st, "invalid function formals", &params, NULL);
   }
 
   /* push environment with frame */
@@ -227,8 +228,8 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
       return qz_to_cfun(fun)(st, obj);
     }
 
-    qz_unref(st, fun);
-    return qz_error(st, "uncallable value");
+    qz_push_safety(st, fun);
+    return qz_error(st, "uncallable value", &fun, NULL);
   }
 
   if(qz_is_sym(obj))
@@ -236,16 +237,16 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     qz_obj_t* slot = qz_lookup(st, obj);
 
     if(!slot)
-      return qz_error(st, "unbound variable");
+      return qz_error(st, "unbound variable", &obj, NULL);
 
     return qz_ref(st, *slot);
   }
 
   if(qz_is_null(obj))
-    return qz_error(st, "cannot evaluate null");
+    return qz_error(st, "cannot evaluate null", NULL);
 
   if(qz_is_none(obj))
-    return qz_error(st, "cannot evaluate unspecified value");
+    return qz_error(st, "cannot evaluate unspecified value", NULL);
 
   return qz_ref(st, obj);
 }
@@ -267,9 +268,38 @@ qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym)
   }
 }
 
-qz_obj_t qz_error(qz_state_t* st, const char* msg)
+qz_obj_t qz_error(qz_state_t* st, const char* msg, ...)
 {
-  st->error_obj = qz_make_string(msg);
+  va_list ap;
+  va_start(ap, msg);
+
+  qz_obj_t irritants = QZ_NULL;
+  qz_obj_t elem;
+
+  for(;;) {
+    qz_obj_t* obj = va_arg(ap, qz_obj_t*);
+
+    if(!obj)
+      break;
+
+    qz_obj_t inner_elem = qz_make_pair(qz_ref(st, *obj), QZ_NULL);
+    if(qz_is_null(irritants)) {
+      irritants = elem = inner_elem;
+    }
+    else {
+      qz_to_pair(elem)->rest = inner_elem;
+      elem = inner_elem;
+    }
+  }
+
+  va_end(ap);
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_ERROR, 0);
+  cell->value.pair.first = qz_make_string(msg);
+  cell->value.pair.rest = irritants;
+
+  st->error_obj = qz_from_cell(cell);
+
   longjmp(*st->peval_fail, 1);
 }
 

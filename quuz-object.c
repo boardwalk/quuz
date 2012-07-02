@@ -50,6 +50,9 @@ int qz_is_fun(qz_obj_t obj) {
 int qz_is_promise(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_PROMISE);
 }
+int qz_is_error(qz_obj_t obj) {
+  return cell_of_type(obj, QZ_CT_ERROR);
+}
 int qz_is_string(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_STRING);
 }
@@ -243,7 +246,7 @@ qz_obj_t qz_rest(qz_obj_t obj) {
 qz_obj_t qz_required_arg(qz_state_t* st, qz_obj_t* obj)
 {
   if(!qz_is_pair(*obj))
-    qz_error(st, "expected list");
+    return qz_error(st, "expected list", obj, NULL);
   qz_pair_t* pair = qz_to_pair(*obj);
   *obj = pair->rest;
   return pair->first;

@@ -43,8 +43,8 @@ static qz_obj_t compare_many(qz_state_t* st, qz_obj_t args, pred_fun pf, cmp_fun
 {
   qz_obj_t prev = qz_eval(st, qz_required_arg(st, &args));
   if(!pf(prev)) {
-    qz_unref(st, prev);
-    return qz_error(st, "unexpected type");
+    qz_push_safety(st, prev);
+    return qz_error(st, "unexpected type", &prev, NULL);
   }
 
   /* compare each pair of objects */
@@ -59,8 +59,8 @@ static qz_obj_t compare_many(qz_state_t* st, qz_obj_t args, pred_fun pf, cmp_fun
 
     qz_obj_t curr = qz_eval(st, expr);
     if(!pf(curr)) {
-      qz_unref(st, curr);
-      return qz_error(st, "unexpected type");
+      qz_push_safety(st, curr);
+      return qz_error(st, "unexpected type", &curr, NULL);
     }
 
     qz_pop_safety(st, 1);
@@ -88,8 +88,8 @@ static qz_obj_t array_ref(qz_state_t* st, qz_obj_t args, const char* type_spec, 
 
   qz_cell_t* cell = qz_to_cell(obj);
   if(k_raw < 0 || k_raw >= cell->value.array.size) {
-    qz_unref(st, obj);
-    return qz_error(st, "index out of bounds");
+    qz_push_safety(st, obj);
+    return qz_error(st, "index out of bounds", &k, &obj, NULL);
   }
 
   qz_obj_t result = gef(st, cell, k_raw);
@@ -113,8 +113,8 @@ static qz_obj_t array_set(qz_state_t* st, qz_obj_t args, const char* type_spec, 
 
   qz_cell_t* cell = qz_to_cell(arr);
   if(k_raw < 0 || k_raw >= cell->value.array.size) {
-    qz_unref(st, arr);
-    return qz_error(st, "index out of bounds");
+    qz_push_safety(st, arr);
+    return qz_error(st, "index out of bounds", &k, &obj, NULL);
   }
 
   sef(st, cell, k_raw, obj);
@@ -189,7 +189,7 @@ QZ_DEF_CFUN(scm_set_b)
   qz_obj_t* slot = qz_lookup(st, var);
 
   if(!slot)
-    qz_error(st, "unbound variable in set!");
+    qz_error(st, "unbound variable in set!", &var, NULL);
 
   qz_obj_t value = qz_eval(st, expr);
 
@@ -410,7 +410,7 @@ QZ_DEF_CFUN(scm_let)
     qz_obj_t expr = qz_required_arg(st, &binding);
 
     if(!qz_is_sym(sym))
-      qz_error(st, "expected symbol");
+      qz_error(st, "expected symbol", &sym, NULL);
 
     qz_hash_set(st, &frame, sym, qz_eval(st, expr));
 
@@ -455,7 +455,7 @@ QZ_DEF_CFUN(scm_let_s)
     qz_obj_t expr = qz_required_arg(st, &binding);
 
     if(!qz_is_sym(sym))
-      qz_error(st, "expected symbol");
+      qz_error(st, "expected symbol", &sym, NULL);
 
     qz_hash_set(st, &qz_to_pair(env)->first, sym, qz_eval(st, expr));
   }
@@ -568,7 +568,7 @@ static qz_obj_t list_tail(qz_state_t* st, qz_obj_t obj)
     if(qz_is_null(rest))
       return obj;
     if(!qz_is_pair(rest))
-      return qz_error(st, "expected list");
+      return qz_error(st, "expected list", &rest, NULL);
     obj = rest;
   }
 }
@@ -731,7 +731,7 @@ QZ_DEF_CFUN(scm_define)
     /* function creation and assignment */
     qz_obj_t var = qz_required_arg(st, &header);
     if(!qz_is_sym(var))
-      return qz_error(st, "function variant of define not given symbol");
+      return qz_error(st, "function variant of define not given symbol", &var, NULL);
 
     qz_obj_t formals = qz_ref(st, header);
     qz_obj_t body = qz_make_pair(st->begin_sym, qz_ref(st, args));
@@ -745,7 +745,7 @@ QZ_DEF_CFUN(scm_define)
   }
   else
   {
-    return qz_error(st, "first argument to define must be a symbol or list");
+    return qz_error(st, "first argument to define must be a symbol or list", &header, NULL);
   }
 
   return QZ_NONE;
@@ -794,7 +794,7 @@ static ALIGNED qz_obj_t access_record(qz_state_t* st, qz_obj_t args)
   qz_cell_t* cell = qz_to_cell(record);
 
   if(!qz_eqv(cell->value.record.name, name))
-    return qz_error(st, "wrong type to record accessor");
+    return qz_error(st, "wrong type to record accessor", &cell->value.record.name, NULL);
 
   return qz_ref(st, QZ_CELL_DATA(cell, qz_obj_t)[qz_to_fixnum(field)]);
 }
@@ -809,7 +809,7 @@ static ALIGNED qz_obj_t modify_record(qz_state_t* st, qz_obj_t args)
   qz_cell_t* cell = qz_to_cell(record);
 
   if(!qz_eqv(cell->value.record.name, name))
-    return qz_error(st, "wrong type to record modifier");
+    return qz_error(st, "wrong type to record modifier", &cell->value.record.name, NULL);
 
   qz_obj_t* slot = QZ_CELL_DATA(cell, qz_obj_t) + qz_to_fixnum(field);
 
@@ -853,12 +853,12 @@ QZ_DEF_CFUN(scm_define_record_type)
   qz_obj_t pred_name = qz_required_arg(st, &args);
 
   if(!qz_is_sym(pred_name))
-    return qz_error(st, "expected symbol for predicate");
+    return qz_error(st, "expected symbol for predicate", &pred_name, NULL);
 
   /* parse fields */
   intptr_t nfields = list_length(args);
   if(nfields < 0)
-    return qz_error(st, "expected list for arguments");
+    return qz_error(st, "expected list for arguments", &args, NULL);
 
   qz_obj_t* fields = (qz_obj_t*)alloca(nfields*sizeof(qz_obj_t));
   for(intptr_t i = 0; i < nfields; i++)
@@ -867,11 +867,11 @@ QZ_DEF_CFUN(scm_define_record_type)
   /* parse ctor */
   qz_obj_t ctor_name = qz_required_arg(st, &ctor);
   if(!qz_is_sym(ctor_name))
-    return qz_error(st, "expected symbol for constructor name");
+    return qz_error(st, "expected symbol for constructor name", &ctor_name, NULL);
 
   intptr_t ninit = list_length(ctor);
   if(ninit < 0)
-    return qz_error(st, "expected list for constructor");
+    return qz_error(st, "expected list for constructor", &ctor, NULL);
 
   intptr_t* init_indices = (intptr_t*)alloca(ninit*sizeof(qz_obj_t));
   for(intptr_t i = 0; i < ninit; i++)
@@ -886,7 +886,7 @@ QZ_DEF_CFUN(scm_define_record_type)
     }
 
     if(j == nfields)
-      return qz_error(st, "contructor lists unknown field");
+      return qz_error(st, "contructor lists unknown field", &name, NULL);
 
     init_indices[i] = j;
   }
@@ -1034,7 +1034,7 @@ QZ_DEF_CFUN(scm_num_add)
     qz_obj_t value = qz_eval(st, expr);
     if(!qz_is_fixnum(value)) {
       qz_unref(st, value);
-      return qz_error(st, "expected fixnum");
+      return qz_error(st, "expected fixnum", &value, NULL);
     }
 
     result = qz_from_fixnum(qz_to_fixnum(result) + qz_to_fixnum(value));
@@ -1054,7 +1054,7 @@ QZ_DEF_CFUN(scm_num_mul)
     qz_obj_t value = qz_eval(st, expr);
     if(!qz_is_fixnum(value)) {
       qz_unref(st, value);
-      return qz_error(st, "expected fixnum");
+      return qz_error(st, "expected fixnum", &value, NULL);
     }
 
     result = qz_from_fixnum(qz_to_fixnum(result) * qz_to_fixnum(value));
@@ -1068,7 +1068,7 @@ QZ_DEF_CFUN(scm_num_sub)
   qz_obj_t result = qz_eval(st, expr);
   if(!qz_is_fixnum(result)) {
     qz_unref(st, result);
-    return qz_error(st, "expected fixnum");
+    return qz_error(st, "expected fixnum", &result, NULL);
   }
 
   expr = qz_optional_arg(st, &args);
@@ -1247,7 +1247,7 @@ QZ_DEF_CFUN(scm_length)
   qz_unref(st, obj);
 
   if(len < 0)
-    return qz_error(st, "expected list");
+    return qz_error(st, "expected list", &obj, NULL);
 
   return qz_from_fixnum(len);
 }
@@ -1267,9 +1267,9 @@ QZ_DEF_CFUN(scm_reverse)
     }
 
     if(!qz_is_pair(elem)) {
-      qz_unref(st, list);
       qz_unref(st, result);
-      return qz_error(st, "expected list");
+      qz_push_safety(st, list);
+      return qz_error(st, "expected list", &list, NULL);
     }
 
     result = qz_make_pair(qz_first(elem), result);
@@ -1286,13 +1286,13 @@ QZ_DEF_CFUN(scm_list_tail)
   for(intptr_t i = qz_to_fixnum(k); i > 0; i--)
   {
     if(qz_is_null(elem)) {
-      qz_unref(st, list);
-      return qz_error(st, "list too short");
+      qz_push_safety(st, list);
+      return qz_error(st, "list too short", &list, NULL);
     }
 
     if(!qz_is_pair(elem)) {
-      qz_unref(st, list);
-      return qz_error(st, "expected list");
+      qz_push_safety(st, list);
+      return qz_error(st, "expected list", &list, NULL);
     }
 
     elem = qz_rest(elem);
@@ -1315,7 +1315,7 @@ QZ_DEF_CFUN(scm_list_set_b)
   qz_push_safety(st, elem);
 
   if(!qz_is_pair(elem))
-    return qz_error(st, "expected list");
+    return qz_error(st, "expected list", &elem, NULL);
 
   qz_obj_t obj = qz_eval(st, qz_required_arg(st, &args));
 
@@ -1447,7 +1447,7 @@ QZ_DEF_CFUN(scm_list_copy)
     }
 
     if(!qz_is_pair(elem))
-      return qz_error(st, "expected list");
+      return qz_error(st, "expected list", &list, NULL);
 
     qz_obj_t inner_result = qz_make_pair(qz_ref(st, qz_first(elem)), QZ_NULL);
 
@@ -1634,7 +1634,7 @@ QZ_DEF_CFUN(scm_make_string)
 
   intptr_t k_raw = qz_to_fixnum(k);
   if(k_raw < 0)
-    return qz_error(st, "bad string length");
+    return qz_error(st, "bad string length", &k, NULL);
 
   qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, k_raw*sizeof(char));
   cell->value.array.size = k_raw;
@@ -1818,8 +1818,8 @@ QZ_DEF_CFUN(scm_substring)
   intptr_t end_raw = qz_to_fixnum(end);
 
   if(start_raw < 0 || end_raw < start_raw || in->value.array.size < end_raw) {
-    qz_unref(st, str);
-    return qz_error(st, "index out of bounds");
+    qz_push_safety(st, str);
+    return qz_error(st, "index out of bounds", &str, &start, &end, NULL);
   }
 
   qz_cell_t* out = qz_make_cell(QZ_CT_STRING, (end_raw-start_raw)*sizeof(char));
@@ -1864,8 +1864,10 @@ QZ_DEF_CFUN(scm_list_a_string)
   qz_get_args(st, &args, "p", &list);
 
   intptr_t len = list_length(list);
-  if(len < 0)
-    return qz_error(st, "expected list");
+  if(len < 0) {
+    qz_push_safety(st, list);
+    return qz_error(st, "expected list", &list, NULL);
+  }
 
   qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, len);
 
@@ -1873,9 +1875,9 @@ QZ_DEF_CFUN(scm_list_a_string)
   for(size_t i = 0; i < len; i++) {
     qz_obj_t ch = qz_first(e);
     if(!qz_is_char(ch)) {
-      qz_unref(st, list);
+      qz_push_safety(st, list);
       qz_unref(st, qz_from_cell(cell));
-      return qz_error(st, "expected character");
+      return qz_error(st, "expected character", &ch, NULL);
     }
     QZ_CELL_DATA(cell, char)[i] = qz_to_char(ch);
     e = qz_rest(e);
@@ -1914,7 +1916,7 @@ QZ_DEF_CFUN(scm_make_vector)
   intptr_t k_raw = qz_to_fixnum(k);
   if(k_raw < 0) {
     qz_unref(st, fill);
-    return qz_error(st, "bad vector length");
+    return qz_error(st, "bad vector length", &k, NULL);
   }
 
   qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, k_raw*sizeof(qz_obj_t));
@@ -1994,8 +1996,8 @@ QZ_DEF_CFUN(scm_list_a_vector)
   intptr_t len = list_length(list);
 
   if(len < 0) {
-    qz_unref(st, list);
-    return qz_error(st, "expected list");
+    qz_push_safety(st, list);
+    return qz_error(st, "expected list", &list, NULL);
   }
 
   qz_cell_t* cell = qz_make_cell(QZ_CT_VECTOR, len*sizeof(qz_obj_t));
@@ -2026,9 +2028,9 @@ QZ_DEF_CFUN(scm_vector_a_string)
   for(size_t i = 0; i < len; i++) {
     qz_obj_t ch = QZ_CELL_DATA(in, qz_obj_t)[i];
     if(!qz_is_char(ch)) {
-      qz_unref(st, vec);
+      qz_push_safety(st, vec);
       qz_unref(st, qz_from_cell(out));
-      return qz_error(st, "expected char");
+      return qz_error(st, "expected char", &ch, NULL);
     }
     QZ_CELL_DATA(out, char)[i] = qz_to_char(ch);
   }
@@ -2069,7 +2071,7 @@ QZ_DEF_CFUN(scm_vector_copy)
 
   if(start_raw > end_raw) {
     qz_unref(st, vec);
-    return qz_error(st, "invalid index");
+    return qz_error(st, "invalid index", &start, &end, NULL);
   }
 
   size_t out_len = end_raw - start_raw;
@@ -2109,7 +2111,7 @@ QZ_DEF_CFUN(scm_make_bytevector)
 
   intptr_t k_raw = qz_to_fixnum(k);
   if(k_raw < 0)
-    return qz_error(st, "bad bytevector length");
+    return qz_error(st, "bad bytevector length", &k, NULL);
 
   qz_cell_t* cell = qz_make_cell(QZ_CT_BYTEVECTOR, k_raw*sizeof(uint8_t));
   cell->value.array.size = k_raw;
@@ -2170,7 +2172,7 @@ QZ_DEF_CFUN(scm_apply)
   qz_obj_t elem;
 
   if(!qz_is_pair(args))
-    return qz_error(st, "expected pair");
+    return qz_error(st, "expected pair", &args, NULL);
 
   for(;;)
   {
@@ -2289,10 +2291,12 @@ QZ_DEF_CFUN(scm_file_exists_q)
   struct stat stat_buf;
   int ok = stat(QZ_CELL_DATA(qz_to_cell(filename), char), &stat_buf);
 
-  qz_unref(st, filename);
+  if(ok < 0 && errno != ENOENT) {
+    qz_push_safety(st, filename);
+    return qz_error(st, strerror(errno), &filename, NULL);
+  }
 
-  if(ok < 0 && errno != ENOENT)
-    return qz_error(st, strerror(errno));
+  qz_unref(st, filename);
 
   return (ok == 0) ? QZ_TRUE : QZ_FALSE;
 }
@@ -2304,10 +2308,12 @@ QZ_DEF_CFUN(scm_delete_file)
 
   int ok = unlink(QZ_CELL_DATA(qz_to_cell(filename), char));
 
-  qz_unref(st, filename);
+  if(ok < 0) {
+    qz_push_safety(st, filename);
+    return qz_error(st, strerror(errno), &filename, NULL);
+  }
 
-  if(ok < 0)
-    return qz_error(st, strerror(errno));
+  qz_unref(st, filename);
 
   return QZ_NONE;
 }
@@ -2351,8 +2357,8 @@ QZ_DEF_CFUN(scm_exit)
     code = qz_to_fixnum(obj);
   }
   else {
-    qz_unref(st, obj);
-    return qz_error(st, "Could not convert object to exit code");
+    qz_push_safety(st, obj);
+    return qz_error(st, "Could not convert object to exit code", &obj, NULL);
   }
 
   exit(code);

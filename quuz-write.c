@@ -65,6 +65,23 @@ static void clear_dirty(qz_state_t* st, qz_cell_t* cell)
 
 static void inner_write(qz_state_t* st, qz_obj_t obj, FILE* fp, int* need_space);
 
+static void write_pair(qz_state_t* st, qz_cell_t* cell, FILE* fp, int* need_space, const char* name)
+{
+  /* TODO How are scheme-defined functions supposed to be written? */
+  qz_pair_t* pair = &cell->value.pair;
+
+  if(*need_space) fputc(' ', fp);
+  fputc('[', fp);
+  fputs(name, fp);
+  *need_space = 1;
+
+  inner_write(st, pair->first, fp, need_space);
+  inner_write(st, pair->rest, fp, need_space);
+
+  fputc(']', fp);
+  *need_space = 1;
+}
+
 static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int* need_space)
 {
   if(!cell) {
@@ -119,34 +136,17 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int* nee
     fputc(')', fp);
     *need_space = 1;
   }
-  else if(qz_type(cell) == QZ_CT_PROMISE)
-  {
-    qz_pair_t* pair = &cell->value.pair;
-
-    if(*need_space) fputc(' ', fp);
-    fputs("[promise ", fp);
-    fputs(qz_is_none(pair->first) ? "(forced)" : "(unforced)", fp);
-    *need_space = 1;
-
-    inner_write(st, pair->rest, fp, need_space);
-
-    fputc(']', fp);
-    *need_space = 1;
-  }
   else if(qz_type(cell) == QZ_CT_FUN)
   {
-    /* TODO How are scheme-defined functions supposed to be written? */
-    qz_pair_t* pair = &cell->value.pair;
-
-    if(*need_space) fputc(' ', fp);
-    fputs("[fun", fp);
-    *need_space = 1;
-
-    inner_write(st, pair->first, fp, need_space);
-    inner_write(st, pair->rest, fp, need_space);
-
-    fputc(']', fp);
-    *need_space = 1;
+    write_pair(st, cell, fp, need_space, "fun");
+  }
+  else if(qz_type(cell) == QZ_CT_PROMISE)
+  {
+    write_pair(st, cell, fp, need_space, "promise");
+  }
+  else if(qz_type(cell) == QZ_CT_ERROR)
+  {
+    write_pair(st, cell, fp, need_space, "error");
   }
   else if(qz_type(cell) == QZ_CT_STRING)
   {

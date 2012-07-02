@@ -14,6 +14,7 @@ static const char* type_name(char t)
   case 'p': return "pair";
   case 'g': return "fun";
   case 'q': return "promise";
+  case 'e': return "error";
   case 's': return "string";
   case 'v': return "vector";
   case 'w': return "bytevector";
@@ -38,6 +39,7 @@ static int is_type(qz_obj_t obj, char t)
   case 'p': return qz_is_pair(obj);
   case 'g': return qz_is_fun(obj);
   case 'q': return qz_is_promise(obj);
+  case 'e': return qz_is_error(obj);
   case 's': return qz_is_string(obj);
   case 'v': return qz_is_vector(obj);
   case 'w': return qz_is_bytevector(obj);
@@ -74,7 +76,7 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...)
       if(!is_type(*obj, *s)) {
         char msg[64];
         sprintf(msg, "expected %s at argument %ld\n", type_name(*s), nargs);
-        qz_error(st, msg);
+        qz_error(st, msg, obj, NULL);
       }
 
       if(*(s + 1) == '?') {
@@ -90,10 +92,10 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...)
       }
       char msg[64];
       sprintf(msg, "missing %s at argument %ld\n", type_name(*s), nargs);
-      qz_error(st, msg);
+      qz_error(st, msg, NULL);
     }
     else {
-      qz_error(st, "improper argument list");
+      qz_error(st, "improper argument list", args, NULL);
     }
   }
   qz_pop_safety(st, nargs);

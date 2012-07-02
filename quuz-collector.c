@@ -34,6 +34,7 @@ void all_children(qz_state_t* st, qz_cell_t* cell, child_func func)
   case QZ_CT_PAIR:
   case QZ_CT_FUN:
   case QZ_CT_PROMISE:
+  case QZ_CT_ERROR:
     call_if_valid_cell(st, cell->value.pair.first, func);
     call_if_valid_cell(st, cell->value.pair.rest, func);
     break;

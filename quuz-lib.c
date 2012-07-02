@@ -904,7 +904,6 @@ QZ_DEF_CFUN(scm_define_record_type)
 
   /* generate constructor */
   {
-
     /* (make_record name nfields ninit init1 init2 init3... . args) */
     qz_obj_t elem = qz_make_pair(qz_from_fixnum(ninit), QZ_NULL);
     qz_obj_t fun_call = qz_make_pair(qz_from_cfun(make_record),
@@ -2178,7 +2177,7 @@ ALIGNED qz_obj_t qz_error_handler(qz_state_t* st, qz_obj_t args)
   qz_obj_t obj = qz_optional_arg(st, &args);
 
   fputs("An error was caught: ", stderr);
-  qz_write(st, obj, -1, stderr);
+  qz_write(st, obj, stderr);
   fputc('\n', stderr);
 
   return QZ_NONE;
@@ -2228,7 +2227,7 @@ QZ_DEF_CFUN(scm_write)
   qz_obj_t obj;
   qz_get_args(st, &args, "a", &obj);
 
-  qz_write(st, obj, -1, stdout);
+  qz_write(st, obj, stdout);
   qz_unref(st, obj);
 
   return QZ_NONE;

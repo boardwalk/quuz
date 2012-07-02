@@ -134,10 +134,11 @@ qz_obj_t qz_from_char(char c) {
 }
 
 /* cell->info accessors */
-#define REFCOUNT_BITS (sizeof(size_t)*CHAR_BIT - TYPE_BITS - COLOR_BITS - BUFFERED_BITS)
+#define REFCOUNT_BITS (sizeof(size_t)*CHAR_BIT - TYPE_BITS - COLOR_BITS - BUFFERED_BITS - DIRTY_BITS)
 #define TYPE_BITS 3
 #define COLOR_BITS 2
 #define BUFFERED_BITS 1
+#define DIRTY_BITS 1
 
 static size_t get_bits(size_t bitfield, size_t pos, size_t len) {
   size_t mask = ~(size_t)0 >> (sizeof(size_t)*CHAR_BIT - len);
@@ -159,6 +160,9 @@ qz_cell_color_t qz_color(qz_cell_t* cell) {
 size_t qz_buffered(qz_cell_t* cell) {
   return get_bits(cell->info, REFCOUNT_BITS + TYPE_BITS + COLOR_BITS, BUFFERED_BITS);
 }
+size_t qz_dirty(qz_cell_t* cell) {
+  return get_bits(cell->info, REFCOUNT_BITS + TYPE_BITS + COLOR_BITS + BUFFERED_BITS, DIRTY_BITS);
+}
 void qz_set_refcount(qz_cell_t* cell, size_t rc) {
   cell->info = set_bits(cell->info, 0, REFCOUNT_BITS, rc);
 }
@@ -170,6 +174,9 @@ void qz_set_color(qz_cell_t* cell, qz_cell_color_t cc) {
 }
 void qz_set_buffered(qz_cell_t* cell, size_t bu) {
   cell->info = set_bits(cell->info, REFCOUNT_BITS + TYPE_BITS + COLOR_BITS, BUFFERED_BITS, bu);
+}
+void qz_set_dirty(qz_cell_t* cell, size_t d) {
+  cell->info = set_bits(cell->info, REFCOUNT_BITS + TYPE_BITS + COLOR_BITS + BUFFERED_BITS, DIRTY_BITS, d);
 }
 
 qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size)

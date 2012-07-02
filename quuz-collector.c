@@ -22,13 +22,13 @@ void logit(qz_state_t* st, const char* fn, qz_cell_t* cell)
 
 typedef void (*child_func)(qz_state_t* st, qz_cell_t* cell);
 
-static void call_if_valid_cell(qz_state_t* st, qz_obj_t obj, child_func func)
+void call_if_valid_cell(qz_state_t* st, qz_obj_t obj, child_func func)
 {
   if(qz_is_cell(obj) && !qz_is_null(obj))
     func(st, qz_to_cell(obj));
 }
 
-static void all_children(qz_state_t* st, qz_cell_t* cell, child_func func)
+void all_children(qz_state_t* st, qz_cell_t* cell, child_func func)
 {
   switch(qz_type(cell)) {
   case QZ_CT_PAIR:

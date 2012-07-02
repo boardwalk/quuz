@@ -50,9 +50,22 @@ void describe(qz_state_t* st, qz_cell_t* cell)
 }
 #endif
 
-static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* need_space);
+/* quuz-collector.c */
+typedef void (*child_func)(qz_state_t* st, qz_cell_t* cell);
+void call_if_valid_cell(qz_state_t* st, qz_obj_t obj, child_func func);
+void all_children(qz_state_t* st, qz_cell_t* cell, child_func func);
 
-static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* fp, int* need_space)
+static void clear_dirty(qz_state_t* st, qz_cell_t* cell)
+{
+  if(qz_dirty(cell)) {
+    qz_set_dirty(cell, 0);
+    all_children(st, cell, clear_dirty);
+  }
+}
+
+static void inner_write(qz_state_t* st, qz_obj_t obj, FILE* fp, int* need_space);
+
+static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int* need_space)
 {
   if(!cell) {
     if(*need_space) fputc(' ', fp);
@@ -60,6 +73,15 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     *need_space = 1;
     return;
   }
+
+  if(qz_dirty(cell)) {
+    if(*need_space) fputc(' ', fp);
+    fputs("...", fp);
+    *need_space = 1;
+    return;
+  }
+
+  qz_set_dirty(cell, 1);
 
 //#ifdef DEBUG_COLLECTOR
 //  describe(cell);
@@ -73,34 +95,25 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputc('(', fp);
     *need_space = 0;
 
-    if(depth)
+    for(;;)
     {
-      depth--;
-      for(;;)
+      inner_write(st, pair->first, fp, need_space);
+
+      if(qz_is_null(pair->rest))
+        break;
+
+      if(!qz_is_pair(pair->rest))
       {
-        inner_write(st, pair->first, depth, fp, need_space);
+        if(*need_space) fputc(' ', fp);
 
-        if(qz_is_null(pair->rest))
-          break;
+        fputc('.', fp);
+        *need_space = 1;
 
-        if(!qz_is_pair(pair->rest))
-        {
-          if(*need_space) fputc(' ', fp);
-
-          fputc('.', fp);
-          *need_space = 1;
-
-          inner_write(st, pair->rest, depth, fp, need_space);
-          break;
-        }
-
-        pair = qz_to_pair(pair->rest);
+        inner_write(st, pair->rest, fp, need_space);
+        break;
       }
-      depth++;
-    }
-    else
-    {
-      fputs("...",  fp);
+
+      pair = qz_to_pair(pair->rest);
     }
 
     fputc(')', fp);
@@ -115,7 +128,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputs(qz_is_none(pair->first) ? "(forced)" : "(unforced)", fp);
     *need_space = 1;
 
-    inner_write(st, pair->rest, depth, fp, need_space);
+    inner_write(st, pair->rest, fp, need_space);
 
     fputc(']', fp);
     *need_space = 1;
@@ -129,12 +142,8 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputs("[fun", fp);
     *need_space = 1;
 
-    if(depth) {
-      depth--;
-      inner_write(st, pair->first, depth, fp, need_space);
-      inner_write(st, pair->rest, depth, fp, need_space);
-      depth++;
-    }
+    inner_write(st, pair->first, fp, need_space);
+    inner_write(st, pair->rest, fp, need_space);
 
     fputc(']', fp);
     *need_space = 1;
@@ -166,15 +175,8 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputs("#(", fp);
     *need_space = 0;
 
-    if(depth) {
-      depth--;
-      for(size_t i = 0; i < cell->value.array.size; i++)
-        inner_write(st, QZ_CELL_DATA(cell, qz_obj_t)[i], depth, fp, need_space);
-      depth++;
-    }
-    else {
-      fputs("...", fp);
-    }
+    for(size_t i = 0; i < cell->value.array.size; i++)
+      inner_write(st, QZ_CELL_DATA(cell, qz_obj_t)[i], fp, need_space);
 
     fputc(')', fp);
     *need_space = 1;
@@ -204,37 +206,28 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
     fputc('{', fp);
     *need_space = 0;
 
-    if(depth) {
-      depth--;
+    int first_pair = 1;
+    for(size_t i = 0; i < cell->value.array.capacity; i++)
+    {
+      qz_pair_t* pair = QZ_CELL_DATA(cell, qz_pair_t) + i;
+      if(qz_is_none(pair->first))
+        continue;
 
-      int first_pair = 1;
-      for(size_t i = 0; i < cell->value.array.capacity; i++)
-      {
-        qz_pair_t* pair = QZ_CELL_DATA(cell, qz_pair_t) + i;
-        if(qz_is_none(pair->first))
-          continue;
-
-        if(first_pair) {
-          first_pair = 0;
-        }
-        else {
-          fputc(',', fp);
-          *need_space = 1;
-        }
-
-        inner_write(st, pair->first, depth, fp, need_space);
-
-        if(*need_space) fputc(' ', fp);
-        fputc('=', fp);
+      if(first_pair) {
+        first_pair = 0;
+      }
+      else {
+        fputc(',', fp);
         *need_space = 1;
-
-        inner_write(st, pair->rest, depth, fp, need_space);
       }
 
-      depth++;
-    }
-    else {
-      fputs("...", fp);
+      inner_write(st, pair->first, fp, need_space);
+
+      if(*need_space) fputc(' ', fp);
+      fputc('=', fp);
+      *need_space = 1;
+
+      inner_write(st, pair->rest, fp, need_space);
     }
 
     fputc('}', fp);
@@ -254,7 +247,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, int depth, FILE* f
   }
 }
 
-static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* need_space)
+static void inner_write(qz_state_t* st, qz_obj_t obj, FILE* fp, int* need_space)
 {
   if(qz_is_fixnum(obj))
   {
@@ -264,7 +257,7 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
   }
   else if(qz_is_cell(obj))
   {
-    inner_write_cell(st, qz_to_cell(obj), depth, fp, need_space);
+    inner_write_cell(st, qz_to_cell(obj), fp, need_space);
   }
   else if(qz_is_cfun(obj))
   {
@@ -328,9 +321,10 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp, int* 
   }
 }
 
-void qz_write(qz_state_t* st, qz_obj_t o, int depth, FILE* fp)
+void qz_write(qz_state_t* st, qz_obj_t obj, FILE* fp)
 {
   int need_space = 0;
-  inner_write(st, o, depth, fp, &need_space);
+  inner_write(st, obj, fp, &need_space);
+  call_if_valid_cell(st, obj, clear_dirty);
 }
 

@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
 
     if(mode == PARSE)
     {
-      qz_write(st, obj, -1, stdout);
+      qz_write(st, obj, stdout);
       fputc('\n', stdout);
     }
     else if(mode == RUN)
@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
       qz_obj_t result = qz_peval(st, obj);
       if(!qz_is_none(result))
       {
-        qz_write(st, result, -1, stdout);
+        qz_write(st, result, stdout);
         qz_unref(st, result);
         fputc('\n', stdout);
       }
@@ -82,15 +82,15 @@ int main(int argc, char* argv[])
 
   if(debug) {
     fputs("st->env = ", stderr);
-    qz_write(st, st->env, 6, stderr);
+    qz_write(st, st->env, stderr);
     fputc('\n', stderr);
 
     fputs("st->name_sym = ", stderr);
-    qz_write(st, st->name_sym, -1, stderr);
+    qz_write(st, st->name_sym, stderr);
     fputc('\n', stderr);
 
     fputs("st->sym_name = ", stderr);
-    qz_write(st, st->sym_name, -1, stderr);
+    qz_write(st, st->sym_name, stderr);
     fputc('\n', stderr);
 
     fputs("st->root_buffer = \n", stderr);
@@ -105,4 +105,3 @@ int main(int argc, char* argv[])
 
   return EXIT_SUCCESS;
 }
-

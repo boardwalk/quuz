@@ -73,10 +73,13 @@ typedef struct qz_record {
 
 typedef struct qz_cell {
   // contains four fields, lsb to msb
-  // refcount, sizeof(size_t)*CHAR_BIT - 6 bits
+  // used by quuz-collector.c:
+  // refcount, sizeof(size_t)*CHAR_BIT - 7 bits
   // type, 3 bits, qz_cell_type_t
   // color, 2 bits, qz_cell_color_t
   // buffered, 1 bit
+  // used by quuz-write.c:
+  // dirty, 1 bit
   size_t info;
   union {
     qz_pair_t pair;
@@ -194,11 +197,13 @@ size_t qz_refcount(qz_cell_t*);
 qz_cell_type_t qz_type(qz_cell_t*);
 qz_cell_color_t qz_color(qz_cell_t*);
 size_t qz_buffered(qz_cell_t*);
+size_t qz_dirty(qz_cell_t*);
 
 void qz_set_refcount(qz_cell_t* cell, size_t rc);
 void qz_set_type(qz_cell_t* cell, qz_cell_type_t ct);
 void qz_set_color(qz_cell_t* cell, qz_cell_color_t cc);
 void qz_set_buffered(qz_cell_t* cell, size_t bu);
+void qz_set_dirty(qz_cell_t* cell, size_t d);
 
 qz_cell_t* qz_make_cell(qz_cell_type_t type, size_t extra_size);
 qz_obj_t qz_make_string(const char* str);
@@ -325,7 +330,7 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp);
 /* scheme's write procedure 
  * when depth < 0, the entire tree will be printed and readable by qz_read
  * when depth >= 0, the tree will only be printed to that depth */
-void qz_write(qz_state_t* st, qz_obj_t obj, int depth, FILE* fp);
+void qz_write(qz_state_t* st, qz_obj_t obj, FILE* fp);
 
 /******************************************************************************
  * quuz-collector.c

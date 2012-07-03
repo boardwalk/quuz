@@ -2301,6 +2301,17 @@ QZ_DEF_CFUN(scm_write)
   return QZ_NONE;
 }
 
+QZ_DEF_CFUN(scm_display)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "a", &obj);
+
+  qz_display(st, obj, stdout);
+  qz_unref(st, obj);
+
+  return QZ_NONE;
+}
+
 /* 6.13.4. System interface */
 
 QZ_DEF_CFUN(scm_file_exists_q)
@@ -2553,6 +2564,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_error_object_message, "error-object-message"},
   {scm_error_object_irritants, "error-object-irritants"},
   {scm_write, "write"},
+  {scm_display, "display"},
   {scm_file_exists_q, "file-exists?"},
   {scm_delete_file, "delete-file"},
   {scm_command_line, "command-line"},

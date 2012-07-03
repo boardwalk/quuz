@@ -336,6 +336,9 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp);
 /* scheme's write procedure */
 void qz_write(qz_state_t* st, qz_obj_t obj, FILE* fp);
 
+/* scheme's display procedure */
+void qz_display(qz_state_t* st, qz_obj_t obj, FILE* fp);
+
 /******************************************************************************
  * quuz-collector.c
  ******************************************************************************/

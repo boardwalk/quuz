@@ -1216,25 +1216,7 @@ QZ_DEF_CFUN(scm_make_list)
 
 QZ_DEF_CFUN(scm_list)
 {
-  qz_obj_t result = QZ_NULL;
-  qz_obj_t elem = QZ_NULL;
-
-  for(;;) {
-    qz_obj_t obj;
-    qz_get_args(st, &args, "a?", &obj);
-    if(qz_is_none(obj))
-      return result;
-
-    qz_obj_t inner_elem = qz_make_pair(obj, QZ_NULL);
-
-    if(qz_is_null(elem)) {
-      result = elem = inner_elem;
-    }
-    else {
-      qz_to_pair(elem)->rest = inner_elem;
-      elem = inner_elem;
-    }
-  }
+  return qz_eval_list(st, args);
 }
 
 QZ_DEF_CFUN(scm_length)

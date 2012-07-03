@@ -31,3 +31,8 @@ OK!
 --- expected
 OK!
 
+=== Unbound variable in list
+--- input
+(list 1 2 a)
+--- expected
+OK!

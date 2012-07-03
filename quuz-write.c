@@ -69,7 +69,7 @@ static void clear_dirty(qz_state_t* st, qz_cell_t* cell)
   }
 }
 
-static void inner_write(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int* need_space);
+static void write_object(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int* need_space);
 
 static void write_pair(qz_state_t* st, qz_cell_t* cell, FILE* fp, int human, int* need_space, const char* name)
 {
@@ -81,14 +81,14 @@ static void write_pair(qz_state_t* st, qz_cell_t* cell, FILE* fp, int human, int
   fputs(name, fp);
   *need_space = 1;
 
-  inner_write(st, pair->first, fp, human, need_space);
-  inner_write(st, pair->rest, fp, human, need_space);
+  write_object(st, pair->first, fp, human, need_space);
+  write_object(st, pair->rest, fp, human, need_space);
 
   fputc(']', fp);
   *need_space = 1;
 }
 
-static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int human, int* need_space)
+static void write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int human, int* need_space)
 {
   if(!cell) {
     if(*need_space) fputc(' ', fp);
@@ -120,7 +120,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int huma
 
     for(;;)
     {
-      inner_write(st, pair->first, fp, human, need_space);
+      write_object(st, pair->first, fp, human, need_space);
 
       if(qz_is_null(pair->rest))
         break;
@@ -132,7 +132,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int huma
         fputc('.', fp);
         *need_space = 1;
 
-        inner_write(st, pair->rest, fp, human, need_space);
+        write_object(st, pair->rest, fp, human, need_space);
         break;
       }
 
@@ -187,7 +187,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int huma
     *need_space = 0;
 
     for(size_t i = 0; i < cell->value.array.size; i++)
-      inner_write(st, QZ_CELL_DATA(cell, qz_obj_t)[i], fp, human, need_space);
+      write_object(st, QZ_CELL_DATA(cell, qz_obj_t)[i], fp, human, need_space);
 
     fputc(')', fp);
     *need_space = 1;
@@ -232,13 +232,13 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int huma
         *need_space = 1;
       }
 
-      inner_write(st, pair->first, fp, human, need_space);
+      write_object(st, pair->first, fp, human, need_space);
 
       if(*need_space) fputc(' ', fp);
       fputc('=', fp);
       *need_space = 1;
 
-      inner_write(st, pair->rest, fp, human, need_space);
+      write_object(st, pair->rest, fp, human, need_space);
     }
 
     fputc('}', fp);
@@ -264,7 +264,7 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int huma
   }
 }
 
-static void inner_write(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int* need_space)
+static void write_object(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int* need_space)
 {
   if(qz_is_fixnum(obj))
   {
@@ -274,7 +274,7 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int* 
   }
   else if(qz_is_cell(obj))
   {
-    inner_write_cell(st, qz_to_cell(obj), fp, human, need_space);
+    write_cell(st, qz_to_cell(obj), fp, human, need_space);
   }
   else if(qz_is_cfun(obj))
   {
@@ -343,13 +343,13 @@ static void inner_write(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int* 
 void qz_write(qz_state_t* st, qz_obj_t obj, FILE* fp)
 {
   int need_space = 0;
-  inner_write(st, obj, fp, 0, &need_space);
+  write_object(st, obj, fp, 0, &need_space);
   call_if_valid_cell(st, obj, clear_dirty);
 }
 
 void qz_display(qz_state_t* st, qz_obj_t obj, FILE* fp)
 {
   int need_space = 0;
-  inner_write(st, obj, fp, 1, &need_space);
+  write_object(st, obj, fp, 1, &need_space);
   call_if_valid_cell(st, obj, clear_dirty);
 }

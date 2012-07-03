@@ -213,7 +213,7 @@ static void elide_pair(void)
     if(qz_is_null(pair->rest)) {
       qz_to_pair(prev)->rest = pair->first;
       pair->first = QZ_NULL;
-      qz_obliterate(curr);
+      qz_obliterate(g_st, curr);
       break;
     }
 

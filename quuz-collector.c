@@ -59,7 +59,8 @@ void all_children(qz_state_t* st, qz_cell_t* cell, child_func func)
 void qz_collect(qz_state_t* st);
 static void mark_gray(qz_state_t* st, qz_cell_t* cell);
 static void scan_black(qz_state_t* st, qz_cell_t* cell);
-static void release(qz_state_t* st, qz_cell_t* cell);
+static void release_cell(qz_state_t* st, qz_cell_t* cell);
+static void free_cell(qz_state_t* st, qz_cell_t* cell);
 
 /* mark_roots related */
 static void decr_and_mark_gray(qz_state_t* st, qz_cell_t* cell)
@@ -99,10 +100,8 @@ static void mark_roots(qz_state_t* st)
     {
       qz_set_buffered(cell, 0);
 
-      if(qz_color(cell) == QZ_CC_BLACK && qz_refcount(cell) == 0) {
-        D_PRINTF("mark_roots free(%p)\n", (void*)cell);
-        free(cell);
-      }
+      if(qz_color(cell) == QZ_CC_BLACK && qz_refcount(cell) == 0)
+        free_cell(st, cell);
 
       /* do nothing, discarding cell in buffer */
     }
@@ -157,7 +156,7 @@ static void collect_white(qz_state_t* st, qz_cell_t* cell)
   {
     qz_set_color(cell, QZ_CC_BLACK);
     all_children(st, cell, collect_white);
-    free(cell);
+    free_cell(st, cell);
   }
 }
 
@@ -183,7 +182,7 @@ static void collect_roots(qz_state_t* st)
   {
     qz_cell_t* cell = st->root_buffer[i];
     if(qz_color(cell) == QZ_CC_BLACK && qz_refcount(cell) == 0)
-      free(cell);
+      free_cell(st, cell);
   }
 
   st->root_buffer_size = 0;
@@ -221,20 +220,26 @@ static void decrement(qz_state_t* st, qz_cell_t* cell)
   size_t refcount = qz_refcount(cell) - 1;
   qz_set_refcount(cell, refcount);
   if(refcount == 0)
-    release(st, cell);
+    release_cell(st, cell);
   else
     possible_root(st, cell);
 }
 
-static void release(qz_state_t* st, qz_cell_t* cell)
+static void release_cell(qz_state_t* st, qz_cell_t* cell)
 {
   D_LOG;
   all_children(st, cell, decrement);
   qz_set_color(cell, QZ_CC_BLACK);
-  if(!qz_buffered(cell)) {
-    D_PRINTF("release free(%p)\n", (void*)cell);
-    free(cell); /* I never liked that game */
-  }
+  if(!qz_buffered(cell))
+    free_cell(st, cell);
+}
+
+static void free_cell(qz_state_t* st, qz_cell_t* cell) /* I never liked that game */
+{
+  D_LOG;
+  if(qz_type(cell) == QZ_CT_PORT)
+    fclose(cell->value.fp);
+  free(cell);
 }
 
 /* public functions */
@@ -249,10 +254,10 @@ void qz_unref(qz_state_t* st, qz_obj_t obj)
   call_if_valid_cell(st, obj, decrement);
 }
 
-void qz_obliterate(qz_obj_t obj)
+void qz_obliterate(qz_state_t* st, qz_obj_t obj)
 {
   if(qz_is_cell(obj))
-    free(qz_to_cell(obj));
+    free_cell(st, qz_to_cell(obj));
 }
 
 void qz_collect(qz_state_t* st)

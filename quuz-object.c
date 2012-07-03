@@ -68,6 +68,9 @@ int qz_is_hash(qz_obj_t obj) {
 int qz_is_record(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_RECORD);
 }
+int qz_is_port(qz_obj_t obj) {
+  return cell_of_type(obj, QZ_CT_PORT);
+}
 int qz_is_real(qz_obj_t obj) {
   return cell_of_type(obj, QZ_CT_REAL);
 }
@@ -138,7 +141,7 @@ qz_obj_t qz_from_char(char c) {
 
 /* cell->info accessors */
 #define REFCOUNT_BITS (sizeof(size_t)*CHAR_BIT - TYPE_BITS - COLOR_BITS - BUFFERED_BITS - DIRTY_BITS)
-#define TYPE_BITS 3
+#define TYPE_BITS 4
 #define COLOR_BITS 2
 #define BUFFERED_BITS 1
 #define DIRTY_BITS 1

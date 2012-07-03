@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* quuz-lib.c */
 qz_obj_t qz_error_handler(qz_state_t*, qz_obj_t);
@@ -10,6 +11,13 @@ extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[];
 
 /* quuz-collector.c */
 void qz_collect(qz_state_t* st);
+
+static qz_obj_t make_port(qz_state_t* st, int fd, const char* mode)
+{
+  qz_cell_t* cell = qz_make_cell(QZ_CT_PORT, 0);
+  cell->value.fp = fdopen(dup(fd), mode);
+  return qz_from_cell(cell);
+}
 
 qz_state_t* qz_alloc(void)
 {
@@ -26,6 +34,9 @@ qz_state_t* qz_alloc(void)
   /*fprintf(stderr, "name_sym = %p\n", (void*)qz_to_cell(st->name_sym));*/
   st->sym_name = qz_make_hash();
   /*fprintf(stderr, "sym_name = %p\n", (void*)qz_to_cell(st->sym_name));*/
+  st->input_port = make_port(st, STDIN_FILENO, "r");
+  st->output_port = make_port(st, STDOUT_FILENO, "w");
+  st->error_port = make_port(st, STDERR_FILENO, "w");
   st->next_sym = 1;
   st->begin_sym = qz_make_sym(st, qz_make_string("begin"));
   st->else_sym = qz_make_sym(st, qz_make_string("else"));
@@ -53,6 +64,9 @@ void qz_free(qz_state_t* st)
   qz_unref(st, st->name_sym);
   /*fprintf(stderr, "destroying sym_name...\n");*/
   qz_unref(st, st->sym_name);
+  qz_unref(st, st->input_port);
+  qz_unref(st, st->output_port);
+  qz_unref(st, st->error_port);
   qz_collect(st);
   free(st);
 }

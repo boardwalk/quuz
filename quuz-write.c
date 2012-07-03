@@ -12,6 +12,8 @@ static const char* type_name(qz_cell_type_t ct)
     return "fun";
   case QZ_CT_PROMISE:
     return "promise";
+  case QZ_CT_ERROR:
+    return "error";
   case QZ_CT_STRING:
     return "string";
   case QZ_CT_VECTOR:
@@ -20,6 +22,10 @@ static const char* type_name(qz_cell_type_t ct)
     return "bytevector";
   case QZ_CT_HASH:
     return "hash";
+  case QZ_CT_RECORD:
+    return "record";
+  case QZ_CT_PORT:
+    return "port";
   case QZ_CT_REAL:
     return "real";
   }
@@ -43,7 +49,7 @@ static const char* color_name(qz_cell_color_t cc)
 
 void describe(qz_state_t* st, qz_cell_t* cell)
 {
-  qz_write(st, qz_from_cell(cell), 0, stderr);
+  //qz_write(st, qz_from_cell(cell), 0, stderr);
   fprintf(stderr, "<%p r=%lu t=%s c=%s b=%lu>",
       (void*)cell, qz_refcount(cell),
       type_name(qz_type(cell)), color_name(qz_color(cell)), qz_buffered(cell));
@@ -236,6 +242,12 @@ static void inner_write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int huma
     }
 
     fputc('}', fp);
+    *need_space = 1;
+  }
+  else if(qz_type(cell) == QZ_CT_PORT)
+  {
+    if(*need_space) fputc(' ' , fp);
+    fprintf(fp, "[port %d]", fileno(cell->value.fp));
     *need_space = 1;
   }
   else if(qz_type(cell) == QZ_CT_REAL)

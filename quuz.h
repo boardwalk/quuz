@@ -42,7 +42,8 @@ typedef enum {
   QZ_CT_BYTEVECTOR, /* qz_array_t with uint8_t elements */
   QZ_CT_HASH, /* qz_array_t with qz_pair_t elements */
   QZ_CT_RECORD, /* qz_record_t with qz_obj_t elements */
-  QZ_CT_REAL,
+  QZ_CT_PORT,
+  QZ_CT_REAL
   /* 7 values, 3 bits */
 } qz_cell_type_t;
 
@@ -75,8 +76,8 @@ typedef struct qz_record {
 typedef struct qz_cell {
   // contains four fields, lsb to msb
   // used by quuz-collector.c:
-  // refcount, sizeof(size_t)*CHAR_BIT - 7 bits
-  // type, 3 bits, qz_cell_type_t
+  // refcount, sizeof(size_t)*CHAR_BIT - 8 bits
+  // type, 4 bits, qz_cell_type_t
   // color, 2 bits, qz_cell_color_t
   // buffered, 1 bit
   // used by quuz-write.c:
@@ -86,6 +87,7 @@ typedef struct qz_cell {
     qz_pair_t pair;
     qz_array_t array;
     qz_record_t record;
+    FILE* fp;
     double real;
   } value;
   /* don't put anything beyond the union. qz_array_t is variable in size */
@@ -121,6 +123,11 @@ typedef struct qz_state {
 
   /* a hash mapping symbols to names */
   qz_obj_t sym_name;
+
+  /* default io ports */
+  qz_obj_t input_port;
+  qz_obj_t output_port;
+  qz_obj_t error_port;
 
   /* next number to assign to a symbol */
   size_t next_sym;
@@ -176,6 +183,7 @@ int qz_is_vector(qz_obj_t);
 int qz_is_bytevector(qz_obj_t);
 int qz_is_hash(qz_obj_t);
 int qz_is_record(qz_obj_t);
+int qz_is_port(qz_obj_t);
 int qz_is_real(qz_obj_t);
 
 intptr_t qz_to_fixnum(qz_obj_t);
@@ -264,6 +272,7 @@ int qz_equal(qz_obj_t a, qz_obj_t b);
  * bytevector: w
  * hash: h
  * record: t (think tuple)
+ * port: d (think descriptor)
  * real: r
  * the last specifier may be followed by ? to make it optional
  * ... must be pointers to qz_obj_t's.
@@ -350,6 +359,6 @@ qz_obj_t qz_ref(qz_state_t* st, qz_obj_t obj);
 void qz_unref(qz_state_t* st, qz_obj_t obj);
 
 /* free an object without checking reference count or unreferencing children */
-void qz_obliterate(qz_obj_t obj);
+void qz_obliterate(qz_state_t* st, qz_obj_t obj);
 
 #endif /* QUUZ_QUUZ_H */

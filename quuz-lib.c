@@ -2290,6 +2290,25 @@ QZ_DEF_CFUN(scm_error_object_irritants)
  * 6.13. Input and output
  ******************************************************************************/
 
+/* 6.13.1. Ports */
+
+QZ_DEF_CFUN(scm_current_input_port)
+{
+  return qz_ref(st, st->input_port);
+}
+
+QZ_DEF_CFUN(scm_current_output_port)
+{
+  return qz_ref(st, st->output_port);
+}
+
+QZ_DEF_CFUN(scm_current_error_port)
+{
+  return qz_ref(st, st->error_port);
+}
+
+/* 6.13.3. Output */
+
 QZ_DEF_CFUN(scm_write)
 {
   qz_obj_t obj;
@@ -2563,6 +2582,9 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_error_object_q, "error-object?"},
   {scm_error_object_message, "error-object-message"},
   {scm_error_object_irritants, "error-object-irritants"},
+  {scm_current_input_port, "current-input-port"},
+  {scm_current_output_port, "current-output-port"},
+  {scm_current_error_port, "current-error-port"},
   {scm_write, "write"},
   {scm_display, "display"},
   {scm_file_exists_q, "file-exists?"},

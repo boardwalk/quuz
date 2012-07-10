@@ -2285,6 +2285,18 @@ QZ_DEF_CFUN(scm_error_object_irritants)
 }
 
 /******************************************************************************
+ * 6.12. Eval
+ ******************************************************************************/
+
+/* TODO Support environments */
+
+QZ_DEF_CFUN(scm_eval)
+{
+  qz_obj_t expr = qz_required_arg(st, &args);
+  return qz_eval(st, expr);
+}
+
+/******************************************************************************
  * 6.13. Input and output
  ******************************************************************************/
 
@@ -2777,6 +2789,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_error_object_q, "error-object?"},
   {scm_error_object_message, "error-object-message"},
   {scm_error_object_irritants, "error-object-irritants"},
+  {scm_eval, "eval"},
   {scm_call_with_input_file, "call-with-input-file"},
   {scm_call_with_output_file, "call-with-output-file"},
   {scm_call_with_port, "call-with-port"},

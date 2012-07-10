@@ -9,7 +9,7 @@ char** g_argv = NULL;
 int main(int argc, char* argv[])
 {
   FILE* fp = stdin;
-  enum { UNKNOWN, PARSE, RUN, EVAL } mode = UNKNOWN;
+  enum { UNKNOWN, PARSE, RUN, EVAL } mode = RUN;
   int debug = 0;
 
   /* parse options */
@@ -29,11 +29,6 @@ int main(int argc, char* argv[])
         debug = 1;
         break;
     }
-  }
-
-  if(mode == UNKNOWN) {
-    fputs("mode option required\n", stderr);
-    return EXIT_FAILURE;
   }
 
   if(optind < argc) {

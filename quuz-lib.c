@@ -892,7 +892,8 @@ QZ_DEF_CFUN(scm_define_record_type)
   }
 
   /* allocate unique symbol */
-  qz_obj_t name = (qz_obj_t) { (st->next_sym++ << 5) | QZ_PT_SYM };
+  /* TODO move me */
+  qz_obj_t name = (qz_obj_t) { (st->next_sym++ << 6) | QZ_PT_SYM };
 
   /* generate predicate */
   {
@@ -2533,6 +2534,11 @@ QZ_DEF_CFUN(scm_read)
   return result;
 }
 
+QZ_DEF_CFUN(scm_eof_object_q)
+{
+  return predicate(st, args, qz_is_eof);
+}
+
 /* 6.13.3. Output */
 
 QZ_DEF_CFUN(scm_write)
@@ -2999,6 +3005,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_open_output_file, "open-output-file"},
   {scm_open_binary_output_file, "open-binary-output-file"},
   {scm_read, "read"},
+  {scm_eof_object_q, "eof-object?"},
   {scm_write, "write"},
   {scm_display, "display"},
   {scm_newline, "newline"},

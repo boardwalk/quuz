@@ -5,8 +5,9 @@
 #include <limits.h>
 
 const qz_obj_t QZ_NULL = { (size_t)NULL | QZ_PT_CELL };
-const qz_obj_t QZ_TRUE = { (1 << 5) | QZ_PT_BOOL };
-const qz_obj_t QZ_FALSE = { (0 << 5) | QZ_PT_BOOL };
+const qz_obj_t QZ_TRUE = { (1 << 6) | QZ_PT_BOOL };
+const qz_obj_t QZ_FALSE = { (0 << 6) | QZ_PT_BOOL };
+const qz_obj_t QZ_EOF = { QZ_PT_EOF };
 const qz_obj_t QZ_NONE = { QZ_PT_NONE };
 
 /* qz_is_<type> */
@@ -30,13 +31,16 @@ int qz_is_cfun(qz_obj_t obj) {
   return (obj.value & 7) == QZ_PT_CFUN;
 }
 int qz_is_sym(qz_obj_t obj) {
-  return (obj.value & 31) == QZ_PT_SYM;
+  return (obj.value & 63) == QZ_PT_SYM;
 }
 int qz_is_bool(qz_obj_t obj) {
-  return (obj.value & 31) == QZ_PT_BOOL;
+  return (obj.value & 63) == QZ_PT_BOOL;
 }
 int qz_is_char(qz_obj_t obj) {
-  return (obj.value & 31) == QZ_PT_CHAR;
+  return (obj.value & 63) == QZ_PT_CHAR;
+}
+int qz_is_eof(qz_obj_t obj) {
+  return obj.value == QZ_EOF.value;
 }
 int qz_is_none(qz_obj_t obj) {
   return obj.value == QZ_NONE.value;
@@ -90,15 +94,15 @@ qz_cfun_t qz_to_cfun(qz_obj_t obj) {
 }
 size_t qz_to_sym(qz_obj_t obj) {
   assert(qz_is_sym(obj));
-  return obj.value >> 5;
+  return obj.value >> 6;
 }
 int qz_to_bool(qz_obj_t obj) {
   assert(qz_is_bool(obj));
-  return obj.value >> 5;
+  return obj.value >> 6;
 }
 char qz_to_char(qz_obj_t obj) {
   assert(qz_is_char(obj));
-  return obj.value >> 5;
+  return obj.value >> 6;
 }
 qz_pair_t* qz_to_pair(qz_obj_t obj) {
   assert(qz_is_pair(obj));
@@ -137,10 +141,10 @@ qz_obj_t qz_from_cfun(qz_cfun_t cfun) {
   return (qz_obj_t) { (size_t)cfun | QZ_PT_CFUN };
 }
 qz_obj_t qz_from_bool(int b) {
-  return (qz_obj_t) { (b << 5) | QZ_PT_BOOL };
+  return (qz_obj_t) { (b << 6) | QZ_PT_BOOL };
 }
 qz_obj_t qz_from_char(char c) {
-  return (qz_obj_t) { (c << 5) | QZ_PT_CHAR };
+  return (qz_obj_t) { (c << 6) | QZ_PT_CHAR };
 }
 
 /* cell->info accessors */
@@ -235,7 +239,8 @@ qz_obj_t qz_make_sym(qz_state_t* st, qz_obj_t name)
   }
 
   /* create new symbol */
-  qz_obj_t sym = (qz_obj_t) { (st->next_sym++ << 5) | QZ_PT_SYM };
+  /* TODO move me */
+  qz_obj_t sym = (qz_obj_t) { (st->next_sym++ << 6) | QZ_PT_SYM };
   qz_ref(st, name); /* (1) +1 -2 */
   qz_hash_set(st, &st->name_sym, name, sym);
   qz_hash_set(st, &st->sym_name, sym, name);

@@ -328,6 +328,12 @@ static void write_object(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int*
 
     *need_space = 1;
   }
+  else if(qz_is_eof(obj))
+  {
+    if(*need_space) fputc(' ', fp);
+    fputs("[eof]", fp);
+    *need_space = 1;
+  }
   else if(qz_is_none(obj))
   {
     if(*need_space) fputc(' ', fp);

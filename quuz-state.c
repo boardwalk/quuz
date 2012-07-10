@@ -15,7 +15,8 @@ void qz_collect(qz_state_t* st);
 static qz_obj_t make_port(qz_state_t* st, int fd, const char* mode)
 {
   qz_cell_t* cell = qz_make_cell(QZ_CT_PORT, 0);
-  cell->value.fp = fdopen(dup(fd), mode);
+  cell->value.port.fp = fdopen(dup(fd), mode);
+  cell->value.port.mode = mode;
   return qz_from_cell(cell);
 }
 

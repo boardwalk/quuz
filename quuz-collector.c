@@ -237,8 +237,8 @@ static void release_cell(qz_state_t* st, qz_cell_t* cell)
 static void free_cell(qz_state_t* st, qz_cell_t* cell) /* I never liked that game */
 {
   D_LOG;
-  if(qz_type(cell) == QZ_CT_PORT)
-    fclose(cell->value.fp);
+  if(qz_type(cell) == QZ_CT_PORT && cell->value.port.fp)
+    fclose(cell->value.port.fp);
   free(cell);
 }
 

@@ -1,6 +1,7 @@
 #include "quuz.h"
 #include <assert.h>
 #include <stdarg.h>
+#include <string.h>
 
 static const char* type_name(char t)
 {
@@ -60,40 +61,45 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...)
   va_start(ap, spec);
 
   size_t nargs = 0;
-  for(const char* s = spec; *s; s++)
+  for(const char* s = spec; *s; /**/)
   {
     qz_obj_t* obj = va_arg(ap, qz_obj_t*);
+
+    int type_char = *s++;
+    int eval = (*s == '~') ? (s++, 0) : 1;
+    int optional = (*s == '?') ? (s++, 1) : 0;
 
     if(qz_is_pair(*args)) {
       /* pull argument from list and advance */
       *obj = qz_first(*args);
       *args = qz_rest(*args);
 
-      /* evaluate argument */
-      *obj = qz_eval(st, *obj);
+      if(eval) {
+        /* evaluate argument */
+        *obj = qz_eval(st, *obj);
+      }
+      else {
+        /* don't evaluate argument */
+        *obj = qz_ref(st, *obj);
+      }
       qz_push_safety(st, *obj);
       nargs++;
 
       /* check argument type */
-      if(!is_type(*obj, *s)) {
+      if(!is_type(*obj, type_char)) {
         char msg[64];
-        sprintf(msg, "expected %s at argument %ld\n", type_name(*s), nargs);
+        sprintf(msg, "expected %s at argument %ld\n", type_name(type_char), nargs);
         qz_error(st, msg, obj, NULL);
-      }
-
-      if(*(s + 1) == '?') {
-        s++; /* skip ? */
-        /* present optional argument */
       }
     }
     else if(qz_is_null(*args))  {
-      if(*(s + 1) == '?') {
+      /* allow optional arguments */
+      if(optional) {
         *obj = QZ_NONE;
-        s++; /* skip ? */
         continue; /* missing optional argument */
       }
       char msg[64];
-      sprintf(msg, "missing %s at argument %ld\n", type_name(*s), nargs);
+      sprintf(msg, "missing %s at argument %ld\n", type_name(type_char), nargs);
       qz_error(st, msg, NULL);
     }
     else {
@@ -132,4 +138,42 @@ qz_obj_t qz_eval_list(qz_state_t* st, qz_obj_t list)
   }
 
   return result;
+}
+
+void qz_printf(qz_state_t* st, qz_obj_t port, const char* fmt, ...)
+{
+  FILE* fp = qz_to_port(port)->fp;
+
+  va_list ap;
+  va_start(ap, fmt);
+
+  const char* begin = fmt;
+  const char* end = strchr(begin, '%');
+
+  while(end)
+  {
+    fwrite(begin, sizeof(char), end - begin, fp);
+    switch(*(end + 1)) {
+    case '%':
+      fputc('%', fp);
+      begin = end + 2;
+      break;
+    case 'd':
+      qz_display(st, va_arg(ap, qz_obj_t), port);
+      begin = end + 2;
+      break;
+    case 'w':
+      qz_write(st, va_arg(ap, qz_obj_t), port);
+      begin = end + 2;
+      break;
+    default:
+      begin = end + 1;
+      break;
+    }
+    end = strchr(begin, '%');
+  }
+
+  va_end(ap);
+
+  fputs(begin, fp);
 }

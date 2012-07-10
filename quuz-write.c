@@ -247,7 +247,7 @@ static void write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int human, int
   else if(qz_type(cell) == QZ_CT_PORT)
   {
     if(*need_space) fputc(' ' , fp);
-    fprintf(fp, "[port %d]", fileno(cell->value.fp));
+    fprintf(fp, "[port %d %s]", fileno(cell->value.port.fp), cell->value.port.mode);
     *need_space = 1;
   }
   else if(qz_type(cell) == QZ_CT_REAL)
@@ -340,15 +340,17 @@ static void write_object(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int*
   }
 }
 
-void qz_write(qz_state_t* st, qz_obj_t obj, FILE* fp)
+void qz_write(qz_state_t* st, qz_obj_t obj, qz_obj_t port)
 {
+  FILE* fp = qz_to_cell(port)->value.port.fp;
   int need_space = 0;
   write_object(st, obj, fp, 0, &need_space);
   call_if_valid_cell(st, obj, clear_dirty);
 }
 
-void qz_display(qz_state_t* st, qz_obj_t obj, FILE* fp)
+void qz_display(qz_state_t* st, qz_obj_t obj, qz_obj_t port)
 {
+  FILE* fp = qz_to_cell(port)->value.port.fp;
   int need_space = 0;
   write_object(st, obj, fp, 1, &need_space);
   call_if_valid_cell(st, obj, clear_dirty);

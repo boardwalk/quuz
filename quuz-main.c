@@ -59,8 +59,7 @@ int main(int argc, char* argv[])
 
     if(mode == PARSE)
     {
-      qz_write(st, obj, stdout);
-      fputc('\n', stdout);
+      qz_printf(st, st->output_port, "%w\n", obj);
     }
     else if(mode == RUN)
     {
@@ -71,9 +70,8 @@ int main(int argc, char* argv[])
       qz_obj_t result = qz_peval(st, obj);
       if(!qz_is_none(result))
       {
-        qz_write(st, result, stdout);
+        qz_printf(st, st->output_port, "%w\n", result);
         qz_unref(st, result);
-        fputc('\n', stdout);
       }
     }
 
@@ -81,17 +79,9 @@ int main(int argc, char* argv[])
   }
 
   if(debug) {
-    fputs("st->env = ", stderr);
-    qz_write(st, st->env, stderr);
-    fputc('\n', stderr);
-
-    fputs("st->name_sym = ", stderr);
-    qz_write(st, st->name_sym, stderr);
-    fputc('\n', stderr);
-
-    fputs("st->sym_name = ", stderr);
-    qz_write(st, st->sym_name, stderr);
-    fputc('\n', stderr);
+    qz_printf(st, st->error_port, "st->env = %w\n", st->env);
+    qz_printf(st, st->error_port, "st->name_sym = %w\n", st->name_sym);
+    qz_printf(st, st->error_port, "st->sym_name = %w\n", st->sym_name);
 
     fputs("st->root_buffer = \n", stderr);
     for(size_t i = 0; i < st->root_buffer_size; i++)

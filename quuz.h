@@ -73,6 +73,11 @@ typedef struct qz_record {
   /* data follows */
 } qz_record_t;
 
+typedef struct qz_port {
+  FILE* fp;
+  const char* mode;
+} qz_port_t;
+
 typedef struct qz_cell {
   // contains four fields, lsb to msb
   // used by quuz-collector.c:
@@ -87,7 +92,7 @@ typedef struct qz_cell {
     qz_pair_t pair;
     qz_array_t array;
     qz_record_t record;
-    FILE* fp;
+    qz_port_t port;
     double real;
   } value;
   /* don't put anything beyond the union. qz_array_t is variable in size */
@@ -195,6 +200,7 @@ char qz_to_char(qz_obj_t);
 qz_pair_t* qz_to_pair(qz_obj_t);
 qz_pair_t* qz_to_fun(qz_obj_t);
 qz_pair_t* qz_to_promise(qz_obj_t);
+qz_port_t* qz_to_port(qz_obj_t);
 double qz_to_real(qz_obj_t);
 
 qz_obj_t qz_from_fixnum(intptr_t);
@@ -274,7 +280,9 @@ int qz_equal(qz_obj_t a, qz_obj_t b);
  * record: t (think tuple)
  * port: d (think descriptor)
  * real: r
- * the last specifier may be followed by ? to make it optional
+ * the last specifier may be followed by:
+ *  ? to make it optional
+ *  ~ to not evaluate the object
  * ... must be pointers to qz_obj_t's.
  * the optional argument is set to none if not given
  */
@@ -283,6 +291,9 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...);
 /* eval a list of objects into another list of objects
  * ex. ((+ 1 2) (* 3 4)) -> (3 12) */
 qz_obj_t qz_eval_list(qz_state_t* st, qz_obj_t list);
+
+/* print a string interpolated with the qz_obj_t's formatted by qz_display */
+void qz_printf(qz_state_t* st, qz_obj_t port, const char* fmt, ...);
 
 /******************************************************************************
  * quuz-hash.c
@@ -343,10 +354,10 @@ qz_obj_t qz_read(qz_state_t* st, FILE* fp);
  ******************************************************************************/
 
 /* scheme's write procedure */
-void qz_write(qz_state_t* st, qz_obj_t obj, FILE* fp);
+void qz_write(qz_state_t* st, qz_obj_t obj, qz_obj_t port);
 
 /* scheme's display procedure */
-void qz_display(qz_state_t* st, qz_obj_t obj, FILE* fp);
+void qz_display(qz_state_t* st, qz_obj_t obj, qz_obj_t port);
 
 /******************************************************************************
  * quuz-collector.c

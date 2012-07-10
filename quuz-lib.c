@@ -2206,9 +2206,7 @@ ALIGNED qz_obj_t qz_error_handler(qz_state_t* st, qz_obj_t args)
 {
   qz_obj_t obj = qz_optional_arg(st, &args);
 
-  fputs("An error was caught: ", stderr);
-  qz_write(st, obj, stderr);
-  fputc('\n', stderr);
+  qz_printf(st, st->error_port, "An error was caught: %w\n", obj);
 
   return QZ_NONE;
 }
@@ -2292,6 +2290,133 @@ QZ_DEF_CFUN(scm_error_object_irritants)
 
 /* 6.13.1. Ports */
 
+static qz_obj_t make_port(qz_state_t* st, qz_obj_t str, const char* mode)
+{
+  FILE* fp = fopen(QZ_CELL_DATA(qz_to_cell(str), char), mode);
+  if(!fp)
+    return qz_error(st, strerror(errno), &str, NULL);
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_PORT, 0);
+  cell->value.port.fp = fp;
+  cell->value.port.mode = mode;
+
+  return qz_from_cell(cell);
+}
+
+static void close_port(qz_state_t* st, qz_obj_t obj)
+{
+  qz_port_t* port = qz_to_port(obj);
+  if(port->fp) {
+    fclose(port->fp);
+    port->fp = NULL;
+  }
+}
+
+static qz_obj_t call_with_port(qz_state_t* st, qz_obj_t port, qz_obj_t proc)
+{
+  qz_obj_t fun_call = qz_make_pair(proc, qz_make_pair(port, QZ_NULL));
+  qz_push_safety(st, fun_call);
+
+  qz_obj_t result = qz_eval(st, fun_call);
+  close_port(st, port);
+
+  return result;
+}
+
+static qz_obj_t call_with_file(qz_state_t* st, qz_obj_t str, qz_obj_t proc, const char* mode)
+{
+  qz_push_safety(st, str);
+  qz_push_safety(st, proc);
+
+  qz_obj_t port = make_port(st, str, mode);
+
+  qz_pop_safety(st, 2);
+  qz_unref(st, str);
+
+  return call_with_port(st, port, proc);
+}
+
+QZ_DEF_CFUN(scm_call_with_input_file)
+{
+  qz_obj_t str, proc;
+  qz_get_args(st, &args, "sa", &str, &proc);
+
+  return call_with_file(st, str, proc, "r");
+}
+
+QZ_DEF_CFUN(scm_call_with_output_file)
+{
+  qz_obj_t str, proc;
+  qz_get_args(st, &args, "sa", &str, &proc);
+
+  return call_with_file(st, str, proc, "w");
+}
+
+QZ_DEF_CFUN(scm_call_with_port)
+{
+  qz_obj_t port, proc;
+  qz_get_args(st, &args, "da", &port, &proc);
+
+  return call_with_port(st, port, proc);
+}
+
+static int is_port_with_type(qz_obj_t obj, char mode_char)
+{
+  return qz_is_port(obj) && strchr(qz_to_port(obj)->mode, mode_char) != NULL;
+}
+
+static int is_input_port(qz_obj_t obj)
+{
+  return is_port_with_type(obj, 'r');
+}
+
+static int is_output_port(qz_obj_t obj)
+{
+  return is_port_with_type(obj, 'w');
+}
+
+static int is_textual_port(qz_obj_t obj)
+{
+  return !is_port_with_type(obj, 'b');
+}
+
+static int is_binary_port(qz_obj_t obj)
+{
+  return is_port_with_type(obj, 'b');
+}
+
+QZ_DEF_CFUN(scm_input_port_q)
+{
+  return predicate(st, args, is_input_port);
+}
+
+QZ_DEF_CFUN(scm_output_port_q)
+{
+  return predicate(st, args, is_output_port);
+}
+
+QZ_DEF_CFUN(scm_textual_port_q)
+{
+  return predicate(st, args, is_textual_port);
+}
+
+QZ_DEF_CFUN(scm_binary_port_q)
+{
+  return predicate(st, args, is_binary_port);
+}
+
+QZ_DEF_CFUN(scm_port_q)
+{
+  return predicate(st, args, qz_is_port);
+}
+
+QZ_DEF_CFUN(scm_port_open_q)
+{
+  qz_obj_t obj;
+  qz_get_args(st, &args, "p", &obj);
+  return qz_from_bool(qz_to_port(obj)->fp != NULL);
+}
+
 QZ_DEF_CFUN(scm_current_input_port)
 {
   return qz_ref(st, st->input_port);
@@ -2307,26 +2432,96 @@ QZ_DEF_CFUN(scm_current_error_port)
   return qz_ref(st, st->error_port);
 }
 
+static qz_obj_t with_file(qz_state_t* st, qz_obj_t args, qz_obj_t* port_slot, const char* mode)
+{
+  qz_obj_t str, thunk;
+  qz_get_args(st, &args, "sa~", &str, &thunk);
+
+  qz_obj_t fun_call = qz_make_pair(thunk, QZ_NULL);
+  qz_push_safety(st, fun_call);
+
+  qz_push_safety(st, str);
+  qz_obj_t port = make_port(st, str, mode);
+  qz_pop_safety(st, 1);
+  qz_unref(st, str);
+
+  qz_obj_t old_port = *port_slot;
+  *port_slot = port;
+  qz_push_safety(st, old_port);
+
+  qz_obj_t result = qz_eval(st, fun_call);
+
+  qz_pop_safety(st, 1);
+  *port_slot = old_port;
+
+  close_port(st,  port);
+  qz_unref(st, port);
+
+  return result;
+}
+
+QZ_DEF_CFUN(scm_with_input_from_file)
+{
+  return with_file(st, args, &st->input_port, "r");
+}
+
+QZ_DEF_CFUN(scm_with_output_to_file)
+{
+  return with_file(st, args, &st->output_port, "w");
+}
+
+/* 6.13.2. Input */
+
+QZ_DEF_CFUN(scm_read)
+{
+  /* TODO read has global state, is this okay? */
+
+  qz_obj_t port;
+  qz_get_args(st, &args, "d?", &port);
+
+  if(qz_is_none(port))
+    port = qz_ref(st, st->input_port);
+
+  qz_obj_t result = qz_read(st, qz_to_port(port)->fp);
+  if(qz_is_none(result))
+    return qz_error(st, "could not parse data from port", &port, NULL);
+  /* TODO handle eof */
+
+  qz_unref(st, port);
+
+  return result;
+}
+
 /* 6.13.3. Output */
 
 QZ_DEF_CFUN(scm_write)
 {
-  qz_obj_t obj;
-  qz_get_args(st, &args, "a", &obj);
+  qz_obj_t obj, port;
+  qz_get_args(st, &args, "ad?", &obj, &port);
 
-  qz_write(st, obj, stdout);
+  if(qz_is_none(port))
+    port = qz_ref(st, st->output_port);
+
+  qz_write(st, obj, port);
+
   qz_unref(st, obj);
+  qz_unref(st, port);
 
   return QZ_NONE;
 }
 
 QZ_DEF_CFUN(scm_display)
 {
-  qz_obj_t obj;
-  qz_get_args(st, &args, "a", &obj);
+  qz_obj_t obj, port;
+  qz_get_args(st, &args, "ad?", &obj, &port);
 
-  qz_display(st, obj, stdout);
+  if(qz_is_none(port))
+    port = qz_ref(st, st->output_port);
+
+  qz_display(st, obj, port);
+
   qz_unref(st, obj);
+  qz_unref(st, port);
 
   return QZ_NONE;
 }
@@ -2582,9 +2777,21 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_error_object_q, "error-object?"},
   {scm_error_object_message, "error-object-message"},
   {scm_error_object_irritants, "error-object-irritants"},
+  {scm_call_with_input_file, "call-with-input-file"},
+  {scm_call_with_output_file, "call-with-output-file"},
+  {scm_call_with_port, "call-with-port"},
+  {scm_input_port_q, "input-port?"},
+  {scm_output_port_q, "output-port?"},
+  {scm_textual_port_q, "textual-port?"},
+  {scm_binary_port_q, "binary-port?"},
+  {scm_port_q, "port?"},
+  {scm_port_open_q, "port-open?"},
   {scm_current_input_port, "current-input-port"},
   {scm_current_output_port, "current-output-port"},
   {scm_current_error_port, "current-error-port"},
+  {scm_with_input_from_file, "with-input-from-file"},
+  {scm_with_output_to_file, "with-output-to-file"},
+  {scm_read, "read"},
   {scm_write, "write"},
   {scm_display, "display"},
   {scm_file_exists_q, "file-exists?"},

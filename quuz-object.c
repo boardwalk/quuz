@@ -112,6 +112,10 @@ qz_pair_t* qz_to_promise(qz_obj_t obj) {
   assert(qz_is_promise(obj));
   return &qz_to_cell(obj)->value.pair;
 }
+qz_port_t* qz_to_port(qz_obj_t obj) {
+  assert(qz_is_port(obj));
+  return &qz_to_cell(obj)->value.port;
+}
 double qz_to_real(qz_obj_t obj) {
   assert(qz_is_real(obj));
   return qz_to_cell(obj)->value.real;

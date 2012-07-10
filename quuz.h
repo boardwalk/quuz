@@ -292,7 +292,9 @@ void qz_get_args(qz_state_t* st, qz_obj_t* args, const char* spec, ...);
  * ex. ((+ 1 2) (* 3 4)) -> (3 12) */
 qz_obj_t qz_eval_list(qz_state_t* st, qz_obj_t list);
 
-/* print a string interpolated with the qz_obj_t's formatted by qz_display */
+/* print a string interpolated with the formatted qz_obj_t's
+ * %d -- like (display)
+ * %w -- like (write) */
 void qz_printf(qz_state_t* st, qz_obj_t port, const char* fmt, ...);
 
 /******************************************************************************

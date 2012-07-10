@@ -44,9 +44,9 @@ typedef enum {
   QZ_CT_BYTEVECTOR, /* qz_array_t with uint8_t elements */
   QZ_CT_HASH, /* qz_array_t with qz_pair_t elements */
   QZ_CT_RECORD, /* qz_record_t with qz_obj_t elements */
-  QZ_CT_PORT,
-  QZ_CT_REAL
-  /* 7 values, 3 bits */
+  QZ_CT_PORT, /* qz_port_t */
+  QZ_CT_REAL /* double */
+  /* 11 values, 4 bits */
 } qz_cell_type_t;
 
 typedef enum {
@@ -335,14 +335,15 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj);
  * returns the result of the evaluation */
 qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj);
 
-/* find the slot for a symbol in the current environment */
+/* find the slot for a variable in the current environment
+ * returns NULL if the variable is unbound */
 qz_obj_t* qz_lookup(qz_state_t* st, qz_obj_t sym);
 
 /* throw an error. doesn't return */
 qz_obj_t qz_error(qz_state_t* st, const char* msg, ...);
 
 /* push an object onto the safety buffer
- * objects in this buffer will be unref'd if a peval at a higher level catches an error */
+ * objects in this buffer will be unref'd when control returns to a peval */
 void qz_push_safety(qz_state_t* st, qz_obj_t obj);
 
 /* pop nobj objects from the safety buffer */

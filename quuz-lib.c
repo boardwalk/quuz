@@ -2567,6 +2567,167 @@ QZ_DEF_CFUN(scm_display)
   return QZ_NONE;
 }
 
+QZ_DEF_CFUN(scm_newline)
+{
+  qz_obj_t port;
+  qz_get_args(st, &args, "d?", &port);
+
+  if(qz_is_none(port))
+    port = qz_ref(st, st->output_port);
+
+  qz_cell_t* port_cell = qz_to_cell(port);
+
+  if(!port_cell->value.port.fp) {
+    qz_unref(st, port);
+    return qz_error(st, "port closed");
+  }
+
+  int ret = fputc('\n', port_cell->value.port.fp);
+
+  qz_unref(st, port);
+
+  if(ret == EOF)
+    return qz_error(st, "fputc failed", NULL);
+
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_write_char)
+{
+  qz_obj_t ch, port;
+  qz_get_args(st, &args, "cd?", &ch, &port);
+
+  if(qz_is_none(port))
+    port = qz_ref(st, st->output_port);
+
+  qz_cell_t* port_cell = qz_to_cell(port);
+  char ch_raw = qz_to_char(ch);
+
+  if(!port_cell->value.port.fp) {
+    qz_unref(st, port);
+    return qz_error(st, "port closed");
+  }
+
+  int ret = fputc(ch_raw, port_cell->value.port.fp);
+
+  qz_unref(st, port);
+
+  if(ret == EOF)
+    return qz_error(st, "fputc failed", NULL);
+
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_write_u8)
+{
+  qz_obj_t by, port;
+  qz_get_args(st, &args, "id?", &by, &port);
+
+  if(qz_is_none(port))
+    port = qz_ref(st, st->output_port);
+
+  qz_cell_t* port_cell = qz_to_cell(port);
+  uint8_t by_raw = qz_to_fixnum(by);
+
+  if(!port_cell->value.port.fp) {
+    qz_unref(st, port);
+    return qz_error(st, "port closed");
+  }
+
+  size_t ret = fwrite(&by_raw, 1, 1, port_cell->value.port.fp);
+
+  qz_unref(st, port);
+
+  if(ret != 1)
+    return qz_error(st, "write failed", NULL);
+
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_write_bytevector)
+{
+  qz_obj_t bvec, port;
+  qz_get_args(st, &args, "wd?", &bvec, &port);
+
+  if(qz_is_none(port))
+    port = qz_ref(st, st->output_port);
+
+  qz_cell_t* bvec_cell = qz_to_cell(bvec);
+  qz_cell_t* port_cell = qz_to_cell(port);
+
+  if(!port_cell->value.port.fp) {
+    qz_unref(st, bvec);
+    qz_unref(st, port);
+    return qz_error(st, "port closed");
+  }
+
+  size_t ret = fwrite(QZ_CELL_DATA(bvec_cell, uint8_t), 1,
+                      bvec_cell->value.array.size, port_cell->value.port.fp);
+
+  qz_unref(st, bvec);
+  qz_unref(st, port);
+
+  if(ret != bvec_cell->value.array.size)
+    return qz_error(st, "write failed", NULL);
+
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_write_partial_bytevector)
+{
+  qz_obj_t bvec, start, end, port;
+  qz_get_args(st, &args, "wiid?", &bvec, &start, &end, &port);
+
+  if(qz_is_none(port))
+    port = qz_ref(st, st->output_port);
+
+  qz_cell_t* bvec_cell = qz_to_cell(bvec);
+  qz_cell_t* port_cell = qz_to_cell(port);
+
+  if(!port_cell->value.port.fp) {
+    qz_unref(st, bvec);
+    qz_unref(st, port);
+    return qz_error(st, "port closed");
+  }
+
+  intptr_t start_raw = qz_to_fixnum(start);
+  intptr_t end_raw = qz_to_fixnum(end);
+
+  if(start_raw < 0)
+    start_raw = 0;
+  if(end_raw > bvec_cell->value.array.capacity)
+    end_raw = bvec_cell->value.array.capacity;
+  if(start_raw > end_raw)
+    start_raw = end_raw;
+
+  size_t ret = fwrite(QZ_CELL_DATA(bvec_cell, uint8_t) + start_raw, 1,
+                      end_raw - start_raw, port_cell->value.port.fp);
+
+  qz_unref(st, bvec);
+  qz_unref(st, port);
+
+  if(start_raw + ret != end_raw)
+    return qz_error(st, "write failed");
+
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_flush_output_port)
+{
+  qz_obj_t port;
+  qz_get_args(st, &args, "d?", &port);
+
+  if(qz_is_none(port))
+    port = qz_ref(st, st->output_port);
+
+  qz_cell_t* cell = qz_to_cell(port);
+  if(cell->value.port.fp)
+    fflush(cell->value.port.fp);
+
+  qz_unref(st, port);
+  return QZ_NONE;
+}
+
 /* 6.13.4. System interface */
 
 QZ_DEF_CFUN(scm_file_exists_q)
@@ -2840,6 +3001,12 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_read, "read"},
   {scm_write, "write"},
   {scm_display, "display"},
+  {scm_newline, "newline"},
+  {scm_write_char, "write-char"},
+  {scm_write_u8, "write-u8"},
+  {scm_write_bytevector, "write-bytevector"},
+  {scm_write_partial_bytevector, "write-partial-bytevector"},
+  {scm_flush_output_port,"flush-output-port"},
   {scm_file_exists_q, "file-exists?"},
   {scm_delete_file, "delete-file"},
   {scm_command_line, "command-line"},

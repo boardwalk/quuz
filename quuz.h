@@ -353,6 +353,9 @@ void qz_pop_safety(qz_state_t* st, size_t nobj);
  * quuz-read.c
  ******************************************************************************/
 
+/* read and discard a hash bang line */
+void qz_discard_hashbang(FILE* fp);
+
 /* scheme's read procedure */
 qz_obj_t qz_read(qz_state_t* st, FILE* fp);
 

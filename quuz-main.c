@@ -44,6 +44,7 @@ int main(int argc, char* argv[])
         fputs("could not open input file\n", stderr);
         return EXIT_FAILURE;
       }
+      qz_discard_hashbang(fp);
     }
     g_argc = argc - optind;
     g_argv = argv + optind;

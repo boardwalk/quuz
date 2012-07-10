@@ -1,6 +1,8 @@
 
 start = intertokenSpace datum
 
+hashBang = '#!' (!lineEnding .)* lineEnding
+
 # 7.1.1 Lexical structure
 
 delimiter = whitespace | '(' | ')' | '\"' | ';' | '|'

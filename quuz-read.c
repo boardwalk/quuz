@@ -293,6 +293,13 @@ static void append_sym(const char* s)
 #define YYSTYPE intptr_t
 #include "parser.c"
 
+void qz_discard_hashbang(FILE* fp)
+{
+  g_fp = fp;
+  yyparsefrom(yy_hashBang);
+  g_fp = NULL;
+}
+
 qz_obj_t qz_read(qz_state_t* st, FILE* fp)
 {
   g_st = st;

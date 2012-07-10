@@ -2512,26 +2512,104 @@ QZ_DEF_CFUN(scm_open_binary_output_file)
   return open_file(st, args, "wb");
 }
 
+static qz_obj_t close_port_of_type(qz_state_t* st, qz_obj_t args, char mode_char)
+{
+  qz_obj_t port;
+  qz_get_args(st, &args, "d?", &port);
+  qz_push_safety(st, port);
+  if(mode_char && !strchr(qz_to_port(port)->mode, mode_char))
+    return qz_error(st, "port of wrong type", &port, NULL);
+  close_port(st, port);
+  return QZ_NONE;
+}
+
+QZ_DEF_CFUN(scm_close_port)
+{
+  return close_port_of_type(st, args, '\0');
+}
+
+QZ_DEF_CFUN(scm_close_input_port)
+{
+  return close_port_of_type(st, args, 'r');
+}
+
+QZ_DEF_CFUN(scm_close_output_port)
+{
+  return close_port_of_type(st, args, 'w');
+}
+
+/* TODO open-input-string */
+/* TODO open-output-string */
+/* TODO get-output-string */
+/* TODO open-input-bytevector */
+/* TODO get-output-bytevector */
+
 /* 6.13.2. Input */
+
+static qz_obj_t get_open_port(qz_state_t* st, qz_obj_t* args, qz_obj_t def)
+{
+  qz_obj_t port;
+  qz_get_args(st, args, "d?", &port);
+
+  if(qz_is_none(port))
+    port = qz_ref(st, def);
+
+  qz_push_safety(st, port);
+
+  FILE* fp = qz_to_port(port)->fp;
+  if(!fp)
+    return qz_error(st, "port closed");
+
+  return port;
+}
 
 QZ_DEF_CFUN(scm_read)
 {
   /* TODO read has global state, is this okay? */
 
-  qz_obj_t port;
-  qz_get_args(st, &args, "d?", &port);
+  qz_obj_t port = get_open_port(st, &args, st->input_port);
+  FILE* fp = qz_to_port(port)->fp;
 
-  if(qz_is_none(port))
-    port = qz_ref(st, st->input_port);
-
-  qz_obj_t result = qz_read(st, qz_to_port(port)->fp);
+  qz_obj_t result = qz_read(st, fp);
   if(qz_is_none(result))
     return qz_error(st, "could not parse data from port", &port, NULL);
   /* TODO handle eof */
 
-  qz_unref(st, port);
-
   return result;
+}
+
+QZ_DEF_CFUN(scm_read_char)
+{
+  qz_obj_t port = get_open_port(st, &args, st->input_port);
+  FILE* fp = qz_to_port(port)->fp;
+  int ch = fgetc(fp);
+  if(ch == EOF)
+    return QZ_EOF;
+  return qz_from_char(ch);
+}
+
+QZ_DEF_CFUN(scm_peek_char)
+{
+  qz_obj_t port = get_open_port(st, &args, st->input_port);
+  FILE* fp = qz_to_port(port)->fp;
+  int ch = fgetc(fp);
+  if(ch == EOF)
+    return QZ_EOF;
+  ungetc(ch, fp);
+  return qz_from_char(ch);
+}
+
+QZ_DEF_CFUN(scm_read_line)
+{
+  qz_obj_t port = get_open_port(st, &args, st->input_port);
+  FILE* fp = qz_to_port(port)->fp;
+  char line[1024];
+  if(!fgets(line, sizeof(line), fp)) {
+    if(ferror(fp))
+      return qz_error(st, "fgets failed", &port, NULL);
+    return QZ_EOF;
+  }
+  return qz_make_string(line);
 }
 
 QZ_DEF_CFUN(scm_eof_object_q)
@@ -2539,180 +2617,184 @@ QZ_DEF_CFUN(scm_eof_object_q)
   return predicate(st, args, qz_is_eof);
 }
 
+/* TODO char-ready? */
+
+QZ_DEF_CFUN(scm_read_u8)
+{
+  qz_obj_t port = get_open_port(st, &args, st->input_port);
+  FILE* fp = qz_to_port(port)->fp;
+  uint8_t by;
+  if(fread(&by, sizeof(by), 1, fp) != 1) {
+    if(ferror(fp))
+      return qz_error(st, "fread failed", &port, NULL);
+    return QZ_EOF;
+  }
+  return qz_from_fixnum(by);
+}
+
+/* TODO peek-u8 */
+/* TODO u8-ready? */
+
+QZ_DEF_CFUN(scm_read_bytevector)
+{
+  qz_obj_t length;
+  qz_get_args(st, &args, "i", &length);
+
+  qz_obj_t port = get_open_port(st, &args, st->input_port);
+
+  intptr_t length_raw = qz_to_fixnum(length);
+  FILE* fp = qz_to_port(port)->fp;
+
+  if(length_raw < 0)
+    return qz_error(st, "bad length", &length, NULL);
+
+  qz_cell_t* cell = qz_make_cell(QZ_CT_BYTEVECTOR, length_raw*sizeof(uint8_t));
+  qz_obj_t result = qz_from_cell(cell);
+
+  size_t nread = fread(QZ_CELL_DATA(cell, uint8_t), sizeof(uint8_t), length_raw, fp);
+  if(nread != length_raw) {
+    if(ferror(fp)) {
+      qz_unref(st, result);
+      return qz_error(st, "fread failed", &port, NULL);
+    }
+    if(nread == 0) {
+      qz_unref(st, result);
+      return QZ_EOF;
+    }
+  }
+
+  cell->value.array.size = nread;
+  cell->value.array.capacity = length_raw;
+
+  return result;
+}
+
+QZ_DEF_CFUN(scm_read_bytevector_b)
+{
+  qz_obj_t bvec, start, end;
+  qz_get_args(st, &args, "wii", &bvec, &start, &end);
+  qz_push_safety(st, bvec);
+
+  qz_obj_t port = get_open_port(st, &args, st->input_port);
+
+  qz_cell_t* bvec_cell = qz_to_cell(bvec);
+  intptr_t start_raw = qz_to_fixnum(start);
+  intptr_t end_raw = qz_to_fixnum(end);
+  FILE* fp = qz_to_port(port)->fp;
+
+  if(start_raw < 0 || start_raw > end_raw || end_raw > bvec_cell->value.array.size)
+    return qz_error(st, "invalid indices", &bvec, &start, &end, NULL);
+
+  size_t nread = fread(QZ_CELL_DATA(bvec_cell, uint8_t) + start_raw, sizeof(uint8_t), end_raw - start_raw, fp);
+
+  if(ferror(fp))
+    return qz_error(st, "fread failed", &port, NULL);
+
+  if(nread == 0)
+    return QZ_EOF;
+
+  return qz_from_fixnum(nread);
+}
+
 /* 6.13.3. Output */
 
 QZ_DEF_CFUN(scm_write)
 {
-  qz_obj_t obj, port;
-  qz_get_args(st, &args, "ad?", &obj, &port);
-
-  if(qz_is_none(port))
-    port = qz_ref(st, st->output_port);
+  qz_obj_t obj;
+  qz_get_args(st, &args, "a", &obj);
+  qz_push_safety(st, obj);
+  qz_obj_t port = get_open_port(st, &args, st->output_port);
 
   qz_write(st, obj, port);
-
-  qz_unref(st, obj);
-  qz_unref(st, port);
 
   return QZ_NONE;
 }
 
 QZ_DEF_CFUN(scm_display)
 {
-  qz_obj_t obj, port;
-  qz_get_args(st, &args, "ad?", &obj, &port);
-
-  if(qz_is_none(port))
-    port = qz_ref(st, st->output_port);
+  qz_obj_t obj;
+  qz_get_args(st, &args, "a", &obj);
+  qz_push_safety(st, obj);
+  qz_obj_t port = get_open_port(st, &args, st->output_port);
 
   qz_display(st, obj, port);
-
-  qz_unref(st, obj);
-  qz_unref(st, port);
 
   return QZ_NONE;
 }
 
 QZ_DEF_CFUN(scm_newline)
 {
-  qz_obj_t port;
-  qz_get_args(st, &args, "d?", &port);
+  qz_obj_t port = get_open_port(st, &args, st->output_port);
 
-  if(qz_is_none(port))
-    port = qz_ref(st, st->output_port);
+  FILE* fp = qz_to_port(port)->fp;
 
-  qz_cell_t* port_cell = qz_to_cell(port);
-
-  if(!port_cell->value.port.fp) {
-    qz_unref(st, port);
-    return qz_error(st, "port closed");
-  }
-
-  int ret = fputc('\n', port_cell->value.port.fp);
-
-  qz_unref(st, port);
-
-  if(ret == EOF)
-    return qz_error(st, "fputc failed", NULL);
+  if(fputc('\n', fp) == EOF)
+    return qz_error(st, "fputc failed", &port, NULL);
 
   return QZ_NONE;
 }
 
 QZ_DEF_CFUN(scm_write_char)
 {
-  qz_obj_t ch, port;
-  qz_get_args(st, &args, "cd?", &ch, &port);
+  qz_obj_t ch;
+  qz_get_args(st, &args, "c");
+  qz_obj_t port = get_open_port(st, &args, st->output_port);
 
-  if(qz_is_none(port))
-    port = qz_ref(st, st->output_port);
+  FILE* fp = qz_to_port(port)->fp;
 
-  qz_cell_t* port_cell = qz_to_cell(port);
-  char ch_raw = qz_to_char(ch);
-
-  if(!port_cell->value.port.fp) {
-    qz_unref(st, port);
-    return qz_error(st, "port closed");
-  }
-
-  int ret = fputc(ch_raw, port_cell->value.port.fp);
-
-  qz_unref(st, port);
-
-  if(ret == EOF)
-    return qz_error(st, "fputc failed", NULL);
+  if(fputc(qz_to_char(ch), fp) == EOF)
+    return qz_error(st, "fputc failed", &port, NULL);
 
   return QZ_NONE;
 }
 
 QZ_DEF_CFUN(scm_write_u8)
 {
-  qz_obj_t by, port;
-  qz_get_args(st, &args, "id?", &by, &port);
+  qz_obj_t by;
+  qz_get_args(st, &args, "i", &by);
+  qz_obj_t port = get_open_port(st, &args, st->output_port);
 
-  if(qz_is_none(port))
-    port = qz_ref(st, st->output_port);
-
-  qz_cell_t* port_cell = qz_to_cell(port);
   uint8_t by_raw = qz_to_fixnum(by);
+  FILE* fp = qz_to_port(port)->fp;
 
-  if(!port_cell->value.port.fp) {
-    qz_unref(st, port);
-    return qz_error(st, "port closed");
-  }
-
-  size_t ret = fwrite(&by_raw, 1, 1, port_cell->value.port.fp);
-
-  qz_unref(st, port);
-
-  if(ret != 1)
-    return qz_error(st, "write failed", NULL);
+  if(fwrite(&by_raw, sizeof(uint8_t), 1, fp) != 1)
+    return qz_error(st, "write failed", &port, NULL);
 
   return QZ_NONE;
 }
 
 QZ_DEF_CFUN(scm_write_bytevector)
 {
-  qz_obj_t bvec, port;
-  qz_get_args(st, &args, "wd?", &bvec, &port);
+  qz_obj_t bvec;
+  qz_get_args(st, &args, "w", &bvec);
+  qz_push_safety(st, bvec);
+  qz_obj_t port = get_open_port(st, &args, st->output_port);
 
-  if(qz_is_none(port))
-    port = qz_ref(st, st->output_port);
+  qz_cell_t* cell = qz_to_cell(bvec);
+  FILE* fp = qz_to_port(port)->fp;
 
-  qz_cell_t* bvec_cell = qz_to_cell(bvec);
-  qz_cell_t* port_cell = qz_to_cell(port);
-
-  if(!port_cell->value.port.fp) {
-    qz_unref(st, bvec);
-    qz_unref(st, port);
-    return qz_error(st, "port closed");
-  }
-
-  size_t ret = fwrite(QZ_CELL_DATA(bvec_cell, uint8_t), 1,
-                      bvec_cell->value.array.size, port_cell->value.port.fp);
-
-  qz_unref(st, bvec);
-  qz_unref(st, port);
-
-  if(ret != bvec_cell->value.array.size)
-    return qz_error(st, "write failed", NULL);
+  if(fwrite(QZ_CELL_DATA(cell, uint8_t), sizeof(uint8_t), cell->value.array.size, fp) != cell->value.array.size)
+    return qz_error(st, "write failed", &port, NULL);
 
   return QZ_NONE;
 }
 
 QZ_DEF_CFUN(scm_write_partial_bytevector)
 {
-  qz_obj_t bvec, start, end, port;
-  qz_get_args(st, &args, "wiid?", &bvec, &start, &end, &port);
+  qz_obj_t bvec, start, end;
+  qz_get_args(st, &args, "wii", &bvec, &start, &end);
+  qz_push_safety(st, bvec);
+  qz_obj_t port = get_open_port(st, &args, st->output_port);
 
-  if(qz_is_none(port))
-    port = qz_ref(st, st->output_port);
-
-  qz_cell_t* bvec_cell = qz_to_cell(bvec);
-  qz_cell_t* port_cell = qz_to_cell(port);
-
-  if(!port_cell->value.port.fp) {
-    qz_unref(st, bvec);
-    qz_unref(st, port);
-    return qz_error(st, "port closed");
-  }
-
+  qz_cell_t* cell = qz_to_cell(bvec);
   intptr_t start_raw = qz_to_fixnum(start);
   intptr_t end_raw = qz_to_fixnum(end);
+  FILE* fp = qz_to_port(port)->fp;
 
-  if(start_raw < 0)
-    start_raw = 0;
-  if(end_raw > bvec_cell->value.array.capacity)
-    end_raw = bvec_cell->value.array.capacity;
-  if(start_raw > end_raw)
-    start_raw = end_raw;
+  if(start_raw < 0 || start_raw > end_raw || end_raw > cell->value.array.size)
+    return qz_error(st, "invalid indices", &bvec, &start, &end, NULL);
 
-  size_t ret = fwrite(QZ_CELL_DATA(bvec_cell, uint8_t) + start_raw, 1,
-                      end_raw - start_raw, port_cell->value.port.fp);
-
-  qz_unref(st, bvec);
-  qz_unref(st, port);
-
-  if(start_raw + ret != end_raw)
+  if(fwrite(QZ_CELL_DATA(cell, uint8_t) + start_raw, 1, end_raw - start_raw, fp) != (end_raw - start_raw))
     return qz_error(st, "write failed");
 
   return QZ_NONE;
@@ -2720,17 +2802,11 @@ QZ_DEF_CFUN(scm_write_partial_bytevector)
 
 QZ_DEF_CFUN(scm_flush_output_port)
 {
-  qz_obj_t port;
-  qz_get_args(st, &args, "d?", &port);
+  qz_obj_t port = get_open_port(st, &args, st->output_port);
+  FILE* fp = qz_to_port(port)->fp;
 
-  if(qz_is_none(port))
-    port = qz_ref(st, st->output_port);
+  fflush(fp);
 
-  qz_cell_t* cell = qz_to_cell(port);
-  if(cell->value.port.fp)
-    fflush(cell->value.port.fp);
-
-  qz_unref(st, port);
   return QZ_NONE;
 }
 
@@ -3004,8 +3080,17 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_open_binary_input_file, "open-binary-input-file"},
   {scm_open_output_file, "open-output-file"},
   {scm_open_binary_output_file, "open-binary-output-file"},
+  {scm_close_port, "close-port"},
+  {scm_close_input_port, "close-input-port"},
+  {scm_close_output_port, "close-output-port"},
   {scm_read, "read"},
+  {scm_read_char, "read-char"},
+  {scm_peek_char, "peek-char"},
+  {scm_read_line, "read-line"},
   {scm_eof_object_q, "eof-object?"},
+  {scm_read_u8, "read-u8"},
+  {scm_read_bytevector, "read-bytevector"},
+  {scm_read_bytevector_b, "read-bytevector!"},
   {scm_write, "write"},
   {scm_display, "display"},
   {scm_newline, "newline"},

@@ -12,6 +12,23 @@ extern const qz_named_cfun_t QZ_LIB_FUNCTIONS[];
 /* quuz-collector.c */
 void qz_collect(qz_state_t* st);
 
+static void cleanup_safety_buffer(qz_state_t* st, size_t old_safety_buffer_size)
+{
+  assert(st->safety_buffer_size >= old_safety_buffer_size);
+
+  for(size_t i = st->safety_buffer_size; i > old_safety_buffer_size; i--)
+  {
+    qz_obj_t safety_obj = st->safety_buffer[i - 1];
+
+    if(qz_eq(safety_obj, st->env))
+      st->env = qz_rest(st->env); /* pop environment */
+
+    qz_unref(st, safety_obj);
+  }
+
+  st->safety_buffer_size = old_safety_buffer_size;
+}
+
 static qz_obj_t make_port(qz_state_t* st, int fd, const char* mode)
 {
   qz_cell_t* cell = qz_make_cell(QZ_CT_PORT, 0);
@@ -88,21 +105,6 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   if(!err)
     result = qz_eval(st, obj);
 
-  /* cleanup objects in safety buffers  */
-  assert(st->safety_buffer_size >= old_safety_buffer_size);
-
-  for(size_t i = st->safety_buffer_size; i > old_safety_buffer_size; i--)
-  {
-    qz_obj_t safety_obj = st->safety_buffer[i - 1];
-
-    if(qz_eq(safety_obj, st->env))
-      st->env = qz_rest(st->env); /* pop environment */
-
-    qz_unref(st, safety_obj);
-  }
-
-  st->safety_buffer_size = old_safety_buffer_size;
-
   /* handle errors */
   if(err)
   {
@@ -117,6 +119,9 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 
     /* pop failsafe error handler */
     st->error_handler = old_handler;
+
+    /* clean up objects left behind after failure */
+    cleanup_safety_buffer(st, old_safety_buffer_size);
   }
 
   /* pop state */
@@ -218,8 +223,14 @@ qz_obj_t qz_eval(qz_state_t* st, qz_obj_t obj)
     }
     else if(qz_is_cfun(fun))
     {
-      /* no need to unref, this isn't a cell */
-      return qz_to_cfun(fun)(st, obj);
+      size_t old_safety_buffer_size = st->safety_buffer_size;
+
+      qz_obj_t result = qz_to_cfun(fun)(st, obj);
+
+      /* cleanup up objects left behind after clean call */
+      cleanup_safety_buffer(st, old_safety_buffer_size);
+
+      return result;
     }
 
     qz_push_safety(st, fun);

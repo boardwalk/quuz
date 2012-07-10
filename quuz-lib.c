@@ -2482,6 +2482,35 @@ QZ_DEF_CFUN(scm_with_output_to_file)
   return with_file(st, args, &st->output_port, "w");
 }
 
+static qz_obj_t open_file(qz_state_t* st, qz_obj_t args, const char* mode)
+{
+  qz_obj_t str;
+  qz_get_args(st, &args, "s", &str);
+
+  qz_push_safety(st, str);
+  return make_port(st, str, mode);
+}
+
+QZ_DEF_CFUN(scm_open_input_file)
+{
+  return open_file(st, args, "r");
+}
+
+QZ_DEF_CFUN(scm_open_binary_input_file)
+{
+  return open_file(st, args, "rb");
+}
+
+QZ_DEF_CFUN(scm_open_output_file)
+{
+  return open_file(st, args, "w");
+}
+
+QZ_DEF_CFUN(scm_open_binary_output_file)
+{
+  return open_file(st, args, "wb");
+}
+
 /* 6.13.2. Input */
 
 QZ_DEF_CFUN(scm_read)
@@ -2804,6 +2833,10 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_current_error_port, "current-error-port"},
   {scm_with_input_from_file, "with-input-from-file"},
   {scm_with_output_to_file, "with-output-to-file"},
+  {scm_open_input_file, "open-input-file"},
+  {scm_open_binary_input_file, "open-binary-input-file"},
+  {scm_open_output_file, "open-output-file"},
+  {scm_open_binary_output_file, "open-binary-output-file"},
   {scm_read, "read"},
   {scm_write, "write"},
   {scm_display, "display"},

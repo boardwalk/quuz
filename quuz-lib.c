@@ -81,19 +81,17 @@ typedef qz_obj_t (*getelem_fun)(qz_state_t*, qz_cell_t*, size_t);
 
 static qz_obj_t array_ref(qz_state_t* st, qz_obj_t args, const char* type_spec, getelem_fun gef)
 {
-  qz_obj_t obj, k;
-  qz_get_args(st, &args, type_spec, &obj, &k);
+  qz_obj_t arr, k;
+  qz_get_args(st, &args, type_spec, &arr, &k);
+  qz_push_safety(st, arr);
 
   intptr_t k_raw = qz_to_fixnum(k);
+  qz_cell_t* cell = qz_to_cell(arr);
 
-  qz_cell_t* cell = qz_to_cell(obj);
-  if(k_raw < 0 || k_raw >= cell->value.array.size) {
-    qz_push_safety(st, obj);
-    return qz_error(st, "index out of bounds", &k, &obj, NULL);
-  }
+  if(k_raw < 0 || k_raw >= cell->value.array.size)
+    return qz_error(st, "index out of bounds", &arr, &k, NULL);
 
   qz_obj_t result = gef(st, cell, k_raw);
-  qz_unref(st, obj);
   return result;
 }
 
@@ -108,17 +106,15 @@ static qz_obj_t array_set(qz_state_t* st, qz_obj_t args, const char* type_spec, 
 
   qz_obj_t arr, k, obj;
   qz_get_args(st, &args, type_spec, &arr, &k, &obj);
+  qz_push_safety(st, arr);
 
   intptr_t k_raw = qz_to_fixnum(k);
-
   qz_cell_t* cell = qz_to_cell(arr);
-  if(k_raw < 0 || k_raw >= cell->value.array.size) {
-    qz_push_safety(st, arr);
-    return qz_error(st, "index out of bounds", &k, &obj, NULL);
-  }
+
+  if(k_raw < 0 || k_raw >= cell->value.array.size)
+    return qz_error(st, "index out of bounds", &arr, &k, NULL);
 
   sef(st, cell, k_raw, obj);
-  qz_unref(st, arr);
   return QZ_NONE;
 }
 

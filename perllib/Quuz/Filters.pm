@@ -2,9 +2,16 @@ package Quuz::Filters;
 use strict;
 use warnings;
 use IPC::Open2;
+use File::Which;
 
 our @ISA = qw(Exporter);
 our @EXPORT = qw(external with_valgrind);
+
+my $have_valgrind = defined(which('valgrind'));
+
+if(not $have_valgrind) {
+    print STDERR "warning: valgrind not found\n";
+}
 
 sub external {
   my $data = shift;
@@ -27,8 +34,13 @@ sub external {
 
 sub with_valgrind {
   my $data = shift;
-  external($data, "valgrind", "--quiet", "--leak-check=full",
-    "--show-reachable=yes", "--error-exitcode=1",
-    "--suppressions=yyparse.supp", @_);
+  if($have_valgrind) {
+    external($data, "valgrind", "--quiet", "--leak-check=full",
+      "--show-reachable=yes", "--error-exitcode=1",
+      "--suppressions=yyparse.supp", @_);
+  }
+  else {
+    external($data, @_);
+  }
 }
 

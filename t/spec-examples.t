@@ -187,7 +187,7 @@ unspecified
 --- expected
 6
 
-=== Lazy evluation
+=== Lazy evaluation
 --- input
 (force (delay (+ 1 2)))
 (let ((p (delay (+ 1 2))))

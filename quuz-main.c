@@ -9,7 +9,7 @@ char** g_argv = NULL;
 int main(int argc, char* argv[])
 {
   FILE* fp = stdin;
-  enum { UNKNOWN, PARSE, RUN, EVAL } mode = RUN;
+  enum { PARSE, RUN, EVAL } mode = RUN;
   int debug = 0;
 
   /* parse options */
@@ -32,7 +32,6 @@ int main(int argc, char* argv[])
   }
 
   if(optind < argc) {
-
     if(strcmp(argv[optind], "-") != 0) {
       fp = fopen(argv[optind], "r");
       if(!fp) {
@@ -57,16 +56,13 @@ int main(int argc, char* argv[])
       break;
     }
 
-    if(mode == PARSE)
-    {
+    if(mode == PARSE) {
       qz_printf(st, st->output_port, "%w\n", obj);
     }
-    else if(mode == RUN)
-    {
+    else if(mode == RUN) {
       qz_unref(st, qz_peval(st, obj));
     }
-    else if(mode == EVAL)
-    {
+    else if(mode == EVAL) {
       qz_obj_t result = qz_peval(st, obj);
       if(!qz_is_none(result))
       {

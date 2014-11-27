@@ -75,6 +75,12 @@ int main(int argc, char* argv[])
       }
     }
 
+    if(!qz_is_none(st->error_obj)) {
+      qz_printf(st, st->error_port, "An error occurred: %w\n", st->error_obj);
+      ret = EXIT_FAILURE;
+      break;
+    }
+
     qz_unref(st, obj);
   }
 

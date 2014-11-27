@@ -43,7 +43,7 @@ qz_state_t* qz_alloc(void)
   st->root_buffer_size = 0;
   st->safety_buffer_size = 0;
   st->peval_fail = NULL;
-  st->error_handler = qz_from_cfun(qz_error_handler);
+  st->error_handler = QZ_NONE;
   st->error_obj = QZ_NONE;
   qz_obj_t toplevel = qz_make_hash();
   st->env = qz_make_pair(qz_make_pair(toplevel, QZ_NULL), QZ_NULL);
@@ -76,6 +76,7 @@ qz_state_t* qz_alloc(void)
 
 void qz_free(qz_state_t* st)
 {
+  qz_unref(st, st->error_obj);
   /*fprintf(stderr, "destroying env...\n");*/
   qz_unref(st, st->env);
   /*fprintf(stderr, "destroying name_sym...\n");*/
@@ -99,14 +100,14 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   size_t old_safety_buffer_size = st->safety_buffer_size;
 
   /* call eval() protected by setjmp/longjmp */
-  qz_obj_t result;
+  qz_obj_t result = QZ_NONE;
 
   int err = setjmp(peval_fail);
   if(!err)
     result = qz_eval(st, obj);
 
   /* handle errors */
-  if(err)
+  if(err && !qz_is_none(st->error_handler))
   {
     /* push failsafe error handler */
     qz_obj_t old_handler = st->error_handler;
@@ -114,6 +115,7 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 
     /* call handler */
     qz_obj_t handler_call = qz_make_pair(qz_ref(st, old_handler), qz_make_pair(st->error_obj, QZ_NULL));
+    st->error_obj = QZ_NONE;
     result = qz_peval(st, handler_call);
     qz_unref(st, handler_call);
 
@@ -303,6 +305,7 @@ qz_obj_t qz_error(qz_state_t* st, const char* msg, ...)
   cell->value.pair.first = qz_make_string(msg);
   cell->value.pair.rest = irritants;
 
+  qz_unref(st, st->error_obj);
   st->error_obj = qz_from_cell(cell);
 
   longjmp(*st->peval_fail, 1);

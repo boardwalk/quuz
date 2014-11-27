@@ -2237,7 +2237,6 @@ QZ_DEF_CFUN(scm_raise)
   qz_obj_t obj;
   qz_get_args(st, &args, "a", &obj);
 
-  qz_unref(st, st->error_obj);
   st->error_obj = obj;
   longjmp(*st->peval_fail, 1);
 
@@ -2257,7 +2256,6 @@ QZ_DEF_CFUN(scm_error)
   cell->value.pair.first = message;
   cell->value.pair.rest = irritants;
 
-  qz_unref(st, st->error_obj);
   st->error_obj = qz_from_cell(cell);
   longjmp(*st->peval_fail, 1);
 

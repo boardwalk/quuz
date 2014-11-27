@@ -99,6 +99,10 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
 
   size_t old_safety_buffer_size = st->safety_buffer_size;
 
+  /* clear error object */
+  qz_unref(st, st->error_obj);
+  st->error_obj = QZ_NONE;
+
   /* call eval() protected by setjmp/longjmp */
   qz_obj_t result = QZ_NONE;
 
@@ -107,20 +111,23 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
     result = qz_eval(st, obj);
 
   /* handle errors */
-  if(err && !qz_is_none(st->error_handler))
+  if(err)
   {
-    /* push failsafe error handler */
-    qz_obj_t old_handler = st->error_handler;
-    st->error_handler = qz_from_cfun(qz_error_handler);
+    if(!qz_is_none(st->error_handler))
+    {
+      /* push failsafe error handler */
+      qz_obj_t old_handler = st->error_handler;
+      st->error_handler = qz_from_cfun(qz_error_handler);
 
-    /* call handler */
-    qz_obj_t handler_call = qz_make_pair(qz_ref(st, old_handler), qz_make_pair(st->error_obj, QZ_NULL));
-    st->error_obj = QZ_NONE;
-    result = qz_peval(st, handler_call);
-    qz_unref(st, handler_call);
+      /* call handler */
+      qz_obj_t handler_call = qz_make_pair(qz_ref(st, old_handler), qz_make_pair(st->error_obj, QZ_NULL));
+      st->error_obj = QZ_NONE;
+      result = qz_peval(st, handler_call);
+      qz_unref(st, handler_call);
 
-    /* pop failsafe error handler */
-    st->error_handler = old_handler;
+      /* pop failsafe error handler */
+      st->error_handler = old_handler;
+    }
 
     /* clean up objects left behind after failure */
     cleanup_safety_buffer(st, old_safety_buffer_size);
@@ -305,7 +312,6 @@ qz_obj_t qz_error(qz_state_t* st, const char* msg, ...)
   cell->value.pair.first = qz_make_string(msg);
   cell->value.pair.rest = irritants;
 
-  qz_unref(st, st->error_obj);
   st->error_obj = qz_from_cell(cell);
 
   longjmp(*st->peval_fail, 1);

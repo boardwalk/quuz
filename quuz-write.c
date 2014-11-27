@@ -247,7 +247,7 @@ static void write_cell(qz_state_t* st, qz_cell_t* cell, FILE* fp, int human, int
   else if(qz_type(cell) == QZ_CT_PORT)
   {
     if(*need_space) fputc(' ' , fp);
-    fprintf(fp, "[port %d %s]", fileno(cell->value.port.fp), cell->value.port.mode);
+    fprintf(fp, "[port %d %s]", cell->value.port.fp ? fileno(cell->value.port.fp) : -1, cell->value.port.mode);
     *need_space = 1;
   }
   else if(qz_type(cell) == QZ_CT_REAL)

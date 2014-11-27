@@ -1,16 +1,12 @@
 #include "quuz.h"
-#include "MurmurHash3.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-static uint32_t hash_mem(const void* key, int len, uint32_t seed)
-{
-  MurmurHash3_x86_32(key, len, seed, &seed);
-  return seed;
-}
+/* city.cc */
+uint32_t CityHash32(const char *s, size_t len);
 
-static uint32_t inner_hash(qz_obj_t obj, uint32_t seed)
+static uint32_t hash_obj(qz_obj_t obj)
 {
   if(qz_is_cell(obj))
   {
@@ -18,17 +14,12 @@ static uint32_t inner_hash(qz_obj_t obj, uint32_t seed)
     qz_cell_type_t type = qz_type(cell);
 
     if(type == QZ_CT_STRING)
-      return hash_mem(QZ_CELL_DATA(cell, char), cell->value.array.size*sizeof(char), seed);
+      return CityHash32(QZ_CELL_DATA(cell, char), cell->value.array.size*sizeof(char));
 
     assert(0); /* can't hash this type */
   }
 
-  return hash_mem(&obj, sizeof(obj), seed);
-}
-
-static uint32_t hash_obj(qz_obj_t obj)
-{
-  return inner_hash(obj, 0xDEADBEEF);
+  return CityHash32((char*)&obj, sizeof(obj));
 }
 
 /* create a new hash object with the given capacity */

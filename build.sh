@@ -4,7 +4,10 @@ set -e -x
 leg quuz.leg > parser.c || exit 1
 
 flags="-g"
-[ "$1" = release ] && flags="-O2 -DNDEBUG"
+[ "$1" = release ] && flags="-O2 -fno-asynchronous-unwind-tables -DNDEBUG"
+
+g++ -Wall -pedantic $flags -c \
+  city.cc
 
 gcc -D_POSIX_C_SOURCE=200809L -Wall -pedantic -std=c99 $flags -o quuz \
   quuz-main.c \
@@ -13,7 +16,7 @@ gcc -D_POSIX_C_SOURCE=200809L -Wall -pedantic -std=c99 $flags -o quuz \
   quuz-read.c \
   quuz-write.c \
   quuz-hash.c \
-  MurmurHash3.c \
+  city.o \
   quuz-state.c \
   quuz-lib.c \
   quuz-util.c || exit 1

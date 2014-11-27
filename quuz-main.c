@@ -46,12 +46,16 @@ int main(int argc, char* argv[])
   }
 
   qz_state_t* st = qz_alloc();
+  int ret = EXIT_SUCCESS;
 
-  for(;;) {
+  while(!feof(fp)) {
     qz_obj_t obj = qz_read(st, fp);
 
-    if(qz_is_none(obj))
+    if(qz_is_none(obj)) {
+      fputs("parsing failed\n", stderr);
+      ret = EXIT_FAILURE;
       break;
+    }
 
     if(mode == PARSE)
     {
@@ -89,5 +93,5 @@ int main(int argc, char* argv[])
   if(fp != stdin)
     fclose(fp);
 
-  return EXIT_SUCCESS;
+  return ret;
 }

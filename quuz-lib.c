@@ -706,6 +706,11 @@ QZ_DEF_CFUN(scm_quasiquote)
   return qq(st, qz_first(args), 1);
 }
 
+QZ_DEF_CFUN(scm_unquote)
+{
+  return qz_eval(st, qz_eval(st, qz_first(args)));
+}
+
 /******************************************************************************
  * 5.2. Definitions
  ******************************************************************************/
@@ -2954,6 +2959,7 @@ const qz_named_cfun_t QZ_LIB_FUNCTIONS[] = {
   {scm_force, "force"},
   {scm_eager, "eager"},
   {scm_quasiquote, "quasiquote"},
+  {scm_unquote, "unquote"},
   {scm_define, "define"},
   {scm_define_record_type, "define-record-type"},
   {scm_eq_q, "eq?"},

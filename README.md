@@ -19,5 +19,5 @@ Requires [Test::Base](http://search.cpan.org/~ingy/Test-Base-0.88/lib/Test/Base.
 Optionally uses [valgrind](http://valgrind.org).
 
 ```bash
-perl -Iperllib t/*.t
+prove -Iperllib
 ```

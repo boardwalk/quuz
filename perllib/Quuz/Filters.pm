@@ -44,3 +44,4 @@ sub with_valgrind {
   }
 }
 
+1;

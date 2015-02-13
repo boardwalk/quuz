@@ -12,3 +12,38 @@
    fun:yyDo
 }
 
+# Mac OS specific suppressions
+{
+    map_images
+    Memcheck:Leak
+    ...
+    fun:map_images
+}
+
+{
+    _read_images
+    Memcheck:Leak
+    ...
+    fun:_read_images
+}
+
+{
+    load_images
+    Memcheck:Leak
+    ...
+    fun:load_images
+}
+
+{
+    libSystem_initializer
+    Memcheck:Leak
+    ...
+    fun:libSystem_initializer
+}
+
+{
+    fgetc
+    Memcheck:Leak
+    ...
+    fun:fgetc
+}

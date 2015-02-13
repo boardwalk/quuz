@@ -1,0 +1,10 @@
+language: cpp
+compiler: g++
+install:
+  - ./install-peg.sh
+  - curl -L http://cpanmin.us | sudo perl - --self-upgrade
+  - sudo cpanm Test::Base
+  - sudo cpanm File::Which
+script:
+  - ./build.sh
+  - perl -Iperllib t/*.t

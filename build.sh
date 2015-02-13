@@ -6,10 +6,12 @@ leg quuz.leg > parser.c || exit 1
 flags="-g"
 [ "$1" = release ] && flags="-O2 -fno-asynchronous-unwind-tables -DNDEBUG"
 
-g++ -Wall -pedantic $flags -c \
+flags="$flags -Wall -pedantic"
+
+g++ $flags -std=c++0x -c \
   city.cc
 
-gcc -D_POSIX_C_SOURCE=200809L -Wall -pedantic -std=c99 $flags -o quuz \
+gcc -D_POSIX_C_SOURCE=200809L $flags -std=c99 -o quuz \
   quuz-main.c \
   quuz-object.c \
   quuz-collector.c \

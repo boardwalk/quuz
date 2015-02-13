@@ -7,13 +7,11 @@ use File::Which;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(external with_valgrind);
 
-#my $have_valgrind = defined(which('valgrind'));
+my $have_valgrind = defined(which('valgrind'));
 
-#if(not $have_valgrind) {
-#    print STDERR "warning: valgrind not found\n";
-#}
-
-my $have_valgrind = 0;
+if(not $have_valgrind) {
+    print STDERR "warning: valgrind not found\n";
+}
 
 sub external {
   my $data = shift;

@@ -1,0 +1,13 @@
+{
+   yyparsefrom_alloc
+   Memcheck:Leak
+   fun:malloc
+   fun:yyparsefrom
+}
+
+{
+   yyDo_realloc
+   Memcheck:Leak
+   fun:realloc
+   fun:yyDo
+}

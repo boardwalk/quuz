@@ -1,0 +1,4 @@
+--leak-check=full
+--show-reachable=yes
+--suppressions=peg.supp
+--suppressions=macos.supp

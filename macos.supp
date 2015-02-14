@@ -1,19 +1,4 @@
 {
-   yyparse_alloc
-   Memcheck:Leak
-   fun:malloc
-   fun:yyparsefrom
-}
-
-{
-   yyparse_realloc
-   Memcheck:Leak
-   fun:realloc
-   fun:yyDo
-}
-
-# Mac OS specific suppressions
-{
     map_images
     Memcheck:Leak
     ...

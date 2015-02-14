@@ -2055,7 +2055,7 @@ QZ_DEF_CFUN(scm_vector_copy)
 
   if(start_raw > end_raw) {
     qz_unref(st, vec);
-    return qz_error(st, "invalid index", &start, &end, NULL);
+    return qz_error(st, "invalid range", &start, &end, NULL);
   }
 
   size_t out_len = end_raw - start_raw;
@@ -2065,7 +2065,8 @@ QZ_DEF_CFUN(scm_vector_copy)
 
   for(size_t i = 0; i < out_len; i++)
   {
-    if((i + start_raw < 0) || (i + start_raw >= in_len)) {
+    /* signed plus unsigned equals unsigned, so if i + start_raw < 0, it will wrap */
+    if(i + start_raw >= in_len) {
       QZ_CELL_DATA(out, qz_obj_t)[i] = QZ_NONE;
     }
     else {

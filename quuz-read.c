@@ -302,6 +302,9 @@ void qz_discard_hashbang(FILE* fp)
 
 qz_obj_t qz_read(qz_state_t* st, FILE* fp)
 {
+  /* avoid unused function warning */
+  (void)yyAccept;
+
   g_st = st;
   g_fp = fp;
 

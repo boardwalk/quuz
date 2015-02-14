@@ -74,3 +74,23 @@ foo
 --- expected
 "boof"(1 2 3)
 
+=== Factorial
+6! and above fail!
+--- input
+(define (factorial n)
+  (if (eqv? n 0)
+    1
+    (* (factorial (- n 1)) n)))
+(write (factorial 0)) (newline)
+(write (factorial 1)) (newline)
+(write (factorial 2)) (newline)
+(write (factorial 3)) (newline)
+(write (factorial 4)) (newline)
+(write (factorial 5))
+--- expected
+1
+1
+2
+6
+24
+120

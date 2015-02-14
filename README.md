@@ -2,6 +2,8 @@
 
 quuz is a embeddable Scheme interpreter in the style of lua.
 
+It is based upon the [Scheme R7RS "small" language spec](r7rs.pdf).
+
 [![Build Status](https://travis-ci.org/boardwalk/quuz.svg?branch=master)](https://travis-ci.org/boardwalk/quuz)
 
 ## Building

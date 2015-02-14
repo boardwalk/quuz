@@ -90,7 +90,7 @@ static uint32_t Hash32Len13to24(const char *s, size_t len) {
 static uint32_t Hash32Len0to4(const char *s, size_t len) {
   uint32_t b = 0;
   uint32_t c = 9;
-  for (int i = 0; i < len; i++) {
+  for (size_t i = 0; i < len; i++) {
     signed char v = s[i];
     b = b * c1 + v;
     c ^= b;

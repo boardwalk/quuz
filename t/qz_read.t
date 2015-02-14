@@ -59,7 +59,6 @@ bloggie berf")
 (a b c d e)
 
 === Abbreviations
---- SKIP
 --- input
 ('a `b ,c ,@d)
 --- expected

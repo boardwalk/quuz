@@ -294,7 +294,7 @@ static void write_object(qz_state_t* st, qz_obj_t obj, FILE* fp, int human, int*
     if(name) {
       /* TODO make this readable by qz_read() */
       qz_cell_t* cell = qz_to_cell(*name);
-      fprintf(fp, "%.*s", (int)cell->value.array.size, QZ_CELL_DATA(cell, char));
+      fwrite(QZ_CELL_DATA(cell, char), sizeof(char), cell->value.array.size, fp);
     }
     else {
       fprintf(fp, "[sym %lx]", qz_to_sym(obj));

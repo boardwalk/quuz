@@ -1648,6 +1648,7 @@ QZ_DEF_CFUN(scm_string_length)
 
 static qz_obj_t string_ref(qz_state_t* st, qz_cell_t* cell, size_t i)
 {
+  QZ_UNUSED(st);
   return qz_from_char(QZ_CELL_DATA(cell, char)[i]);
 }
 
@@ -1658,6 +1659,7 @@ QZ_DEF_CFUN(scm_string_ref)
 
 static void string_set(qz_state_t* st, qz_cell_t* cell, size_t i, qz_obj_t obj)
 {
+  QZ_UNUSED(st);
   QZ_CELL_DATA(cell, char)[i] = qz_to_char(obj);
 }
 
@@ -2115,6 +2117,7 @@ QZ_DEF_CFUN(scm_bytevector_length)
 
 static qz_obj_t bytevector_ref(qz_state_t* st, qz_cell_t* cell, size_t i)
 {
+  QZ_UNUSED(st);
   return qz_from_fixnum(QZ_CELL_DATA(cell, uint8_t)[i]);
 }
 
@@ -2125,6 +2128,7 @@ QZ_DEF_CFUN(scm_bytevector_u8_ref)
 
 static void bytevector_set(qz_state_t* st, qz_cell_t* cell, size_t i, qz_obj_t obj)
 {
+  QZ_UNUSED(st);
   QZ_CELL_DATA(cell, uint8_t)[i] = qz_to_fixnum(obj);
 }
 
@@ -2320,6 +2324,7 @@ static qz_obj_t make_port(qz_state_t* st, qz_obj_t str, const char* mode)
 
 static void close_port(qz_state_t* st, qz_obj_t obj)
 {
+  QZ_UNUSED(st);
   qz_port_t* port = qz_to_port(obj);
   if(port->fp) {
     fclose(port->fp);
@@ -2434,16 +2439,19 @@ QZ_DEF_CFUN(scm_port_open_q)
 
 QZ_DEF_CFUN(scm_current_input_port)
 {
+  QZ_UNUSED(args);
   return qz_ref(st, st->input_port);
 }
 
 QZ_DEF_CFUN(scm_current_output_port)
 {
+  QZ_UNUSED(args);
   return qz_ref(st, st->output_port);
 }
 
 QZ_DEF_CFUN(scm_current_error_port)
 {
+  QZ_UNUSED(args);
   return qz_ref(st, st->error_port);
 }
 
@@ -2854,6 +2862,8 @@ extern char** g_argv;
 
 QZ_DEF_CFUN(scm_command_line)
 {
+  QZ_UNUSED(st);
+  QZ_UNUSED(args);
   qz_obj_t result = QZ_NULL;
   qz_obj_t elem;
 
@@ -2912,6 +2922,8 @@ extern char** environ;
 
 QZ_DEF_CFUN(scm_get_environment_variables)
 {
+  QZ_UNUSED(st);
+  QZ_UNUSED(args);
   qz_obj_t result = QZ_NULL;
   qz_obj_t elem;
 
@@ -2938,6 +2950,8 @@ QZ_DEF_CFUN(scm_get_environment_variables)
 
 QZ_DEF_CFUN(scm_current_second)
 {
+  QZ_UNUSED(st);
+  QZ_UNUSED(args);
   return qz_from_fixnum(time(NULL));
 }
 

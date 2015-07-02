@@ -208,6 +208,7 @@ static void possible_root(qz_state_t* st, qz_cell_t* cell)
 
 static void increment(qz_state_t* st, qz_cell_t* cell)
 {
+  QZ_UNUSED(st);
   D_LOG;
   qz_set_refcount(cell, qz_refcount(cell) + 1);
   qz_set_color(cell, QZ_CC_BLACK);
@@ -236,6 +237,7 @@ static void release_cell(qz_state_t* st, qz_cell_t* cell)
 
 static void free_cell(qz_state_t* st, qz_cell_t* cell) /* I never liked that game */
 {
+  QZ_UNUSED(st);
   D_LOG;
   if(qz_type(cell) == QZ_CT_PORT && cell->value.port.fp)
     fclose(cell->value.port.fp);

@@ -9,6 +9,7 @@
 #define QZ_ROOT_BUFFER_CAPACITY 16
 #define QZ_SAFETY_BUFFER_CAPACITY 16
 #define QZ_CELL_DATA(c, t) ((t*)((char*)(c) + sizeof(qz_cell_t)))
+#define QZ_UNUSED(x) (void)x
 
 /*     000 even fixnum (value is << 2)
  *     001 short immediate (see below)

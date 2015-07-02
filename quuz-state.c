@@ -31,6 +31,7 @@ static void cleanup_safety_buffer(qz_state_t* st, size_t old_safety_buffer_size)
 
 static qz_obj_t make_port(qz_state_t* st, int fd, const char* mode)
 {
+  QZ_UNUSED(st);
   qz_cell_t* cell = qz_make_cell(QZ_CT_PORT, 0);
   cell->value.port.fp = fdopen(dup(fd), mode);
   cell->value.port.mode = mode;

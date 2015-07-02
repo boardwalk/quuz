@@ -266,6 +266,7 @@ qz_obj_t qz_required_arg(qz_state_t* st, qz_obj_t* obj)
 
 qz_obj_t qz_optional_arg(qz_state_t* st, qz_obj_t* obj)
 {
+  QZ_UNUSED(st);
   if(!qz_is_pair(*obj))
     return QZ_NONE;
   qz_pair_t* pair = qz_to_pair(*obj);

@@ -92,6 +92,7 @@ qz_obj_t qz_make_hash(void)
 
 qz_obj_t* qz_hash_get(qz_state_t* st, qz_obj_t obj, qz_obj_t key)
 {
+  QZ_UNUSED(st);
   qz_pair_t* pair = get_hash(qz_to_cell(obj), key);
 
   if(qz_is_none(pair->first))

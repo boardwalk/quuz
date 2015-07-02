@@ -291,7 +291,11 @@ static void append_sym(const char* s)
 
 //#define YY_DEBUG
 #define YYSTYPE intptr_t
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #include "parser.c"
+#pragma GCC diagnostic pop
 
 void qz_discard_hashbang(FILE* fp)
 {

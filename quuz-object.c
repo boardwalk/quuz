@@ -126,9 +126,11 @@ double qz_to_real(qz_obj_t obj) {
 }
 
 /* qz_from_<type> */
+#ifndef NDEBUG
 static int pointer_aligned(void* ptr) {
   return ((size_t)ptr & 7) == 0;
 }
+#endif
 qz_obj_t qz_from_fixnum(intptr_t i) {
   return (qz_obj_t) { i << 2 };
 }
@@ -405,5 +407,5 @@ int qz_equal(qz_obj_t a, qz_obj_t b)
   }
 
   assert(0); /* unknown cell type */
+  return 0;
 }
-

@@ -162,11 +162,11 @@ static void collect_white(qz_state_t* st, qz_cell_t* cell)
 
 static void collect_roots(qz_state_t* st)
 {
-  /* the paper say we should collect_white() here,
-    * but we can't because it frees the cell and we may (will?)
-    * come back to it when running the collect_white on another root,
-    * so we're partially duplicating collect_white() here and adding
-    * another loop to clean up unreferenced cells after */
+  /* the paper says we should collect_white() here,
+   * but we can't because it frees the cell and we may (will?)
+   * come back to it when running the collect_white on another root,
+   * so we're partially duplicating collect_white() here and adding
+   * another loop to clean up unreferenced cells after */
   for(size_t i = 0; i < st->root_buffer_size; i++)
   {
     qz_cell_t* cell = st->root_buffer[i];
@@ -272,4 +272,3 @@ void qz_collect(qz_state_t* st)
   collect_roots(st);
   D_PRINTF("qz_collect done\n");
 }
-

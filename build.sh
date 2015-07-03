@@ -6,7 +6,7 @@ leg quuz.leg > parser.c || exit 1
 flags="-g"
 [ "$1" = release ] && flags="-O2 -fno-asynchronous-unwind-tables -DNDEBUG"
 
-flags="$flags -Wall -Wextra -Wno-sign-compare -pedantic"
+flags="$flags -Wall -Wextra -pedantic"
 
 g++ $flags -std=c++0x -c \
   city.cc

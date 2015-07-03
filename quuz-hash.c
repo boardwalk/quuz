@@ -23,7 +23,7 @@ static uint32_t hash_obj(qz_obj_t obj)
 }
 
 /* create a new hash object with the given capacity */
-static qz_cell_t* make_hash(int capacity)
+static qz_cell_t* make_hash(size_t capacity)
 {
   qz_cell_t* cell = qz_make_cell(QZ_CT_HASH, capacity*sizeof(qz_pair_t));
   cell->value.array.size = 0;
@@ -117,4 +117,3 @@ void qz_hash_set(qz_state_t* st, qz_obj_t* obj, qz_obj_t key, qz_obj_t value)
   if(cell->value.array.size * 10 > cell->value.array.capacity * 7)
     realloc_hash(obj);
 }
-

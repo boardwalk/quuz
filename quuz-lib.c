@@ -88,7 +88,7 @@ static qz_obj_t array_ref(qz_state_t* st, qz_obj_t args, const char* type_spec, 
   intptr_t k_raw = qz_to_fixnum(k);
   qz_cell_t* cell = qz_to_cell(arr);
 
-  if(k_raw < 0 || k_raw >= cell->value.array.size)
+  if(k_raw < 0 || (uintptr_t)k_raw >= cell->value.array.size)
     return qz_error(st, "index out of bounds", &arr, &k, NULL);
 
   qz_obj_t result = gef(st, cell, k_raw);
@@ -111,7 +111,7 @@ static qz_obj_t array_set(qz_state_t* st, qz_obj_t args, const char* type_spec, 
   intptr_t k_raw = qz_to_fixnum(k);
   qz_cell_t* cell = qz_to_cell(arr);
 
-  if(k_raw < 0 || k_raw >= cell->value.array.size)
+  if(k_raw < 0 || (uintptr_t)k_raw >= cell->value.array.size)
     return qz_error(st, "index out of bounds", &arr, &k, NULL);
 
   sef(st, cell, k_raw, obj);
@@ -1803,7 +1803,7 @@ QZ_DEF_CFUN(scm_substring)
   intptr_t start_raw = qz_to_fixnum(start);
   intptr_t end_raw = qz_to_fixnum(end);
 
-  if(start_raw < 0 || end_raw < start_raw || in->value.array.size < end_raw) {
+  if(start_raw < 0 || end_raw < start_raw || in->value.array.size < (uintptr_t)end_raw) {
     qz_push_safety(st, str);
     return qz_error(st, "index out of bounds", &str, &start, &end, NULL);
   }
@@ -1858,7 +1858,7 @@ QZ_DEF_CFUN(scm_list_a_string)
   qz_cell_t* cell = qz_make_cell(QZ_CT_STRING, len);
 
   qz_obj_t e = list;
-  for(size_t i = 0; i < len; i++) {
+  for(size_t i = 0; i < (uintptr_t)len; i++) {
     qz_obj_t ch = qz_first(e);
     if(!qz_is_char(ch)) {
       qz_push_safety(st, list);
@@ -1910,7 +1910,7 @@ QZ_DEF_CFUN(scm_make_vector)
   cell->value.array.capacity = k_raw;
 
   if(!qz_is_none(fill)) {
-    for(size_t i = 0; i < k_raw; i++)
+    for(size_t i = 0; i < (uintptr_t)k_raw; i++)
       QZ_CELL_DATA(cell, qz_obj_t)[i] = qz_ref(st, fill);
     qz_unref(st, fill);
   }
@@ -1989,7 +1989,7 @@ QZ_DEF_CFUN(scm_list_a_vector)
   qz_cell_t* cell = qz_make_cell(QZ_CT_VECTOR, len*sizeof(qz_obj_t));
 
   qz_obj_t elem = list;
-  for(size_t i = 0; i < len; i++) {
+  for(size_t i = 0; i < (uintptr_t)len; i++) {
     QZ_CELL_DATA(cell, qz_obj_t)[i] = qz_ref(st, qz_first(elem));
     elem = qz_rest(elem);
   }
@@ -2662,7 +2662,7 @@ QZ_DEF_CFUN(scm_read_bytevector)
   qz_obj_t result = qz_from_cell(cell);
 
   size_t nread = fread(QZ_CELL_DATA(cell, uint8_t), sizeof(uint8_t), length_raw, fp);
-  if(nread != length_raw) {
+  if(nread != (uintptr_t)length_raw) {
     if(ferror(fp)) {
       qz_unref(st, result);
       return qz_error(st, "fread failed", &port, NULL);
@@ -2692,7 +2692,7 @@ QZ_DEF_CFUN(scm_read_bytevector_b)
   intptr_t end_raw = qz_to_fixnum(end);
   FILE* fp = qz_to_port(port)->fp;
 
-  if(start_raw < 0 || start_raw > end_raw || end_raw > bvec_cell->value.array.size)
+  if(start_raw < 0 || start_raw > end_raw || (uintptr_t)end_raw > bvec_cell->value.array.size)
     return qz_error(st, "invalid indices", &bvec, &start, &end, NULL);
 
   size_t nread = fread(QZ_CELL_DATA(bvec_cell, uint8_t) + start_raw, sizeof(uint8_t), end_raw - start_raw, fp);
@@ -2801,10 +2801,10 @@ QZ_DEF_CFUN(scm_write_partial_bytevector)
   intptr_t end_raw = qz_to_fixnum(end);
   FILE* fp = qz_to_port(port)->fp;
 
-  if(start_raw < 0 || start_raw > end_raw || end_raw > cell->value.array.size)
+  if(start_raw < 0 || start_raw > end_raw || (uintptr_t)end_raw > cell->value.array.size)
     return qz_error(st, "invalid indices", &bvec, &start, &end, NULL);
 
-  if(fwrite(QZ_CELL_DATA(cell, uint8_t) + start_raw, 1, end_raw - start_raw, fp) != (end_raw - start_raw))
+  if(fwrite(QZ_CELL_DATA(cell, uint8_t) + start_raw, 1, end_raw - start_raw, fp) != (uintptr_t)(end_raw - start_raw))
     return qz_error(st, "write failed");
 
   return QZ_NONE;

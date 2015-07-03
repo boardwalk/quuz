@@ -5,6 +5,7 @@ install:
   - curl -L http://cpanmin.us | sudo perl - --self-upgrade
   - sudo cpanm Test::Base
   - sudo cpanm File::Which
+  - sudo apt-get update
   - sudo apt-get install -y valgrind
 script:
   - ./build.sh

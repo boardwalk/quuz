@@ -2053,7 +2053,7 @@ QZ_DEF_CFUN(scm_vector_copy)
   size_t in_len = in->value.array.size;
 
   intptr_t start_raw = qz_is_none(start) ? 0 : qz_to_fixnum(start);
-  intptr_t end_raw = qz_is_none(end) ? in_len : qz_to_fixnum(end);
+  intptr_t end_raw = qz_is_none(end) ? (intptr_t)in_len : qz_to_fixnum(end);
 
   if(start_raw > end_raw) {
     qz_unref(st, vec);

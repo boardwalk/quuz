@@ -104,8 +104,11 @@ qz_obj_t qz_peval(qz_state_t* st, qz_obj_t obj)
   qz_unref(st, st->error_obj);
   st->error_obj = QZ_NONE;
 
-  /* call eval() protected by setjmp/longjmp */
-  qz_obj_t result = QZ_NONE;
+  /* call eval() protected by setjmp/longjmp
+   * volatile is required to avoid potential clobbering (detected by -Wclobbered)
+   * caused by changing a local variable between a setjmp and longjmp
+   * you don't see me changing it either? qz_eval and friends must be getting inlined */
+  volatile qz_obj_t result = QZ_NONE;
 
   int err = setjmp(peval_fail);
   if(!err)

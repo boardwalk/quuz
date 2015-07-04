@@ -82,14 +82,16 @@ typedef struct qz_port {
 } qz_port_t;
 
 typedef struct qz_cell {
-  // contains four fields, lsb to msb
-  // used by quuz-collector.c:
-  // refcount, sizeof(size_t)*CHAR_BIT - 8 bits
-  // type, 4 bits, qz_cell_type_t
-  // color, 2 bits, qz_cell_color_t
-  // buffered, 1 bit
-  // used by quuz-write.c:
-  // dirty, 1 bit
+  /*
+   * contains four fields, lsb to msb
+   * used by quuz-collector.c:
+   * refcount, sizeof(size_t)*CHAR_BIT - 8 bits
+   * type, 4 bits, qz_cell_type_t
+   * color, 2 bits, qz_cell_color_t
+   * buffered, 1 bit
+   * used by quuz-write.c:
+   * dirty, 1 bit
+   */
   size_t info;
   union {
     qz_pair_t pair;

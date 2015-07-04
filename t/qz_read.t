@@ -5,7 +5,10 @@ use Quuz::Filters;
 
 sub parse {
   my $data = shift;
-  with_valgrind($data, "./quuz", "-p");
+  my ($code, $stdout, $stderr) = with_valgrind($data, "./quuz", "-p");
+  die "expected success" if ($code != 0);
+  die "expected empty stderr" if ($stderr);
+  $stdout;
 }
 
 filters { input => 'parse' };

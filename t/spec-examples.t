@@ -5,7 +5,8 @@ use Quuz::Filters;
 
 sub eval {
   my $data = shift;
-  with_valgrind($data, "./quuz", "-e");
+  my ($code, $stdout) = with_valgrind($data, "./quuz", "-e");
+  $stdout;
 }
 
 filters { input => 'eval' };

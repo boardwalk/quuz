@@ -1,7 +1,7 @@
 package Quuz::Filters;
 use strict;
 use warnings;
-use IPC::Open2;
+use IPC::Open3;
 use File::Which;
 
 our @ISA = qw(Exporter);
@@ -16,20 +16,21 @@ if(not $have_valgrind) {
 sub external {
   my $data = shift;
 
-  my ($chld_out, $chld_in);
-  my $pid = open2($chld_out, $chld_in, @_);
+  my ($chld_in, $chld_out, $chld_err);
+  use Symbol 'gensym'; $chld_err = gensym;
+  my $pid = open3($chld_in, $chld_out, $chld_err, @_);
 
   print $chld_in $data;
   close $chld_in;
 
   local $/;
-  $data = <$chld_out>;
+  my $stdout = <$chld_out>;
+  my $stderr = <$chld_err>;
   close $chld_out;
+  close $chld_err;
 
   waitpid($pid, 0);
-  die "external failed" if ($?);
-
-  $data;
+  ($?, $stdout, $stderr);
 }
 
 sub with_valgrind {

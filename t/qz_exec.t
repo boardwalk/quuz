@@ -5,7 +5,10 @@ use Quuz::Filters;
 
 sub run_ {
   my $data = shift;
-  with_valgrind($data, "./quuz", "-r");
+  my ($code, $stdout, $stderr) = with_valgrind($data, "./quuz", "-r");
+  die "expected success" if ($code != 0);
+  die "expected empty stderr" if ($stderr);
+  $stdout;
 }
 
 filters { input => 'run_', expected => 'chomp' };

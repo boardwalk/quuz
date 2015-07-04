@@ -23,6 +23,7 @@ gcc -D_POSIX_C_SOURCE=200809L $flags -std=c99 -o quuz \
   quuz-lib.c \
   quuz-util.c || exit 1
 
-[ "$1" = release ] && strip quuz
+# causes valgrind to throw errors?
+#[ "$1" = release ] && strip quuz
 
 exit 0
